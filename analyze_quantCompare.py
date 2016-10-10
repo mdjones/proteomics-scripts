@@ -20,14 +20,14 @@ class for storing peptide data
 contains close_match method to equate peptides that are truncated or extended
 '''
 class Peptide:
-	def __init__(self, seq, mod_locs, ptm_is, area_ratio, annotation, rc):
+	def __init__(self, seq, mod_locs, ptm_is, area_ratio, annotation, run_counter):
 		self.seq = seq
 		self.mod_locs = [i-1 for i in mod_locs]
 		self.area_ratio = area_ratio
 		self.annotation = annotation
 		self.uniprot_ids = []
 		self.ptm_indices = ptm_is
-		self.run_count = rc
+		self.run_counter = run_counter
 		# find all the valid uniprot ids that it matched with 
 		for ann in annotation.split("#"):
 			ann = ann.strip()
@@ -78,6 +78,9 @@ class Peptide:
 	def uniprot_ids_str(self):
 		return ' '.join(self.uniprot_ids)
 
+	def run_count(self):
+		return sum([int(a) for a in self.run_counter])
+
 
 
 
@@ -107,21 +110,27 @@ def process_modifications(pep, ex_mods, ptm_ind = None):
 
 '''
 fetch the data from the line and create a new peptide instance with relevant data
-if the peptide was detected in >= n-1 run
+filter out peptides that appeared in only one run at the end, after merging
 '''
 def get_peptide_data_if_eligible(data):
-	no_show_count = data[2].split(";").count("X")
-	total_runs = len(data[2].split(";"))-1
-	rc = total_runs - no_show_count
-	if no_show_count >= total_runs-1: # if it showed up in > 1 run - use it
-		# 
-		return None 
-	else:
-		ptm_idxs = [a for a in set(data[1].split("#")) if not a.startswith("M") and not a == "NA"]
-		seq, mod_locs, offset = process_modifications(data[0], excepted_modifications)
-		area_ratio  = float(data[5])
-		annotation = data[22]
-		peptide = Peptide(seq, mod_locs, ptm_idxs, area_ratio, annotation, rc)
+	
+	run_data = data[2].split(";")[:-1] # remove empty last spot
+	
+	run_counter = [a != 'X' for a in run_data]
+	
+	no_show_count = run_counter.count(False)
+	
+	total_runs = len(run_counter)
+	#rc = total_runs - no_show_count
+	#if no_show_count >= total_runs-1: # if it showed up in > 1 run - use it
+	#	# 
+	#	return None 
+	
+	ptm_idxs = [a for a in set(data[1].split("#")) if not a.startswith("M") and not a == "NA"]
+	seq, mod_locs, offset = process_modifications(data[0], excepted_modifications)
+	area_ratio  = float(data[5])
+	annotation = data[22]
+	peptide = Peptide(seq, mod_locs, ptm_idxs, area_ratio, annotation, run_counter)
 
 	return peptide
 
@@ -133,32 +142,48 @@ peptide is considered identical if it matches a current peptide with +/- 1 aa on
 '''
 def add_peptide_to_dict(p_dict, pep):
 	for pep_group in p_dict:
-		if pep in pep_group: # "in" uses building __eq__ and __ne__ methods of pep to assess equivalence
+		if pep in pep_group: # "in" uses built-in __eq__ and __ne__ methods of pep to assess equivalence
 			pep_group.append(pep)
 			return p_dict
 	p_dict.append([pep])
 	return p_dict
+
+def pep_group_run_count(pep_group):
+	total_rcr = [False] * len(pep_group[0].run_counter)
+	for pep in pep_group:
+		rc = pep.run_counter
+		for i, v in enumerate(rc):
+			if v:
+				total_rcr[i] = True
+	total_rc = sum([int(a) for a in total_rcr])
+	return total_rc
+
+
 
 def out_line(peptide, ar):
 	#if peptide.global_mod_locs:
 	#	global_mod_locs = " ".join([str(a) for a in peptide.global_mod_locs])
 	#	return "%s,%s,%s,%s,%s\n" % (peptide.peptide_string(), ar, global_mod_locs, peptide.uniprot_ids_str(), peptide.annotation)
 	#else:
-	return "%s,%s,%s,%s,%s,%s\n" % (peptide.peptide_string(),' '.join(peptide.ptm_indices), ar, peptide.uniprot_ids_str(), peptide.annotation, peptide.run_count)
+	return "%s,%s,%s,%s,%s,%s,%s\n" % (peptide.peptide_string(),' '.join(peptide.ptm_indices), ar, peptide.uniprot_ids_str(), peptide.annotation, peptide.run_counter, peptide.run_count())
 '''
 write a file with the desire data from each peptide
 '''
 def write_data_from_peptide_list(pep_list,outfile,reverse = False, verbose = False):
 	outfile.write("%s,%s,%s,%s,%s\n" % ("Peptide", "PTM index from ip2", "average area ratio", "uniprot", "protein"))
 	for pep_group in pep_list:
+		run_count = pep_group_run_count(pep_group)
+
 		pep = pep_group[0]
 		peptide_seq = pep.seq
 		mod_locs = pep.mod_locs
 		annotation = pep.annotation
 		ar = 0
+		total_original_runs = 0
 		for pep_a in pep_group:
-			ar += pep_a.area_ratio
-		ar = ar/(len(pep_group)) # calculate average area ratio
+			total_original_runs += pep_a.run_count()
+			ar += pep_a.area_ratio * pep_a.run_count()
+		ar = ar/(total_original_runs) # calculate average area ratio
 		if reverse:
 			try:
 				ar = 1./ar
@@ -167,9 +192,9 @@ def write_data_from_peptide_list(pep_list,outfile,reverse = False, verbose = Fal
 		
 		if verbose: # print all peptides from a group
 			for p in pep_group:
-				outfile.write(out_line(p, "%s,%s,%s"%(' '.join(p.ptm_indices), ar, p.area_ratio)))
-		else:
-			outfile.write(out_line(pep, ar))
+				outfile.write("%s,%s,%s,%s,%s,%s\n" % (p.peptide_string(),' '.join(p.ptm_indices), str(ar) + "," + str(p.area_ratio), p.uniprot_ids_str(), p.annotation, p.run_count()))
+		else:	
+			outfile.write("%s,%s,%s,%s,%s,%s\n" % (pep.peptide_string(),' '.join(pep.ptm_indices), ar, pep.uniprot_ids_str(), pep.annotation, run_count))
 
 '''
 modifies the lines read in from the csv so as to be easily parseable
@@ -195,7 +220,7 @@ def parse_input():
 
 if __name__ =='__main__':
 	quantc_file, out_file, reverse, verbose = parse_input()
-	quantc_file.readline() #throw out header line
+	#quantc_file.readline() #throw out header line
 
 	pep_list = []
 
@@ -213,7 +238,8 @@ if __name__ =='__main__':
 			add_peptide_to_dict(pep_list, peptide) # add it to the list of peptides
 		
 
-
+	# cut off all peptides that appeared in < 2 runs
+	pep_list = [a for a in pep_list if pep_group_run_count(a) >= 2]
 	write_data_from_peptide_list(pep_list, out_file, reverse, verbose) # write the list of peptides to file
 
 
