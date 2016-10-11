@@ -50,7 +50,6 @@ fetch sequenece and feature data from uniprot XML
 returns string that is the protein seq, and a list of features as dicts
 '''
 def get_feature_data_from_uniprot_xml(uniprot_id):
-	print uniprot_id
 	try :
 		xml = urllib.urlopen("http://www.uniprot.org/uniprot/%s.xml" % uniprot_id.strip()).read()
 		uniprot_data = xmltodict.parse(xml)['uniprot']['entry']
@@ -119,7 +118,7 @@ if __name__ == '__main__':
 		peptide = data[0].strip()
 		area_ratio = float(data[2])
 		uniprot_ids = set(data[3].split(' '))
-		print uniprot_ids
+		
 		#out_file.write("\n%s\t%s\n" % (peptide, area_ratio))
 		feature_dict[peptide] = (area_ratio,{})
 		features = []
