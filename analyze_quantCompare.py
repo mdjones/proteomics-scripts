@@ -1,3 +1,4 @@
+#!/usr/bin/python
 '''
 Follows the standard analysis pathways from the QuantCompare program output file
 
