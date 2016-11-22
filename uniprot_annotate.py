@@ -6,10 +6,27 @@ import sys
 class for a uniprot feature containing:
 feature type, description, location (start,end), uniprot id, uniprot name
 '''
+
+excluded_annotations = [
+"topological domain",
+"sequence conflict",
+"turn",
+"helix",
+"disulfide bond",
+"strand",
+"splice variant",
+"mutagenesis site",
+"domain",
+"repeat",
+"sequence variant",
+"cross-link",
+"short sequence motif",
+"chain"]
+
 class Feature:
 	def __init__(self, uniprot_id, t, description, location):
 		self.uniprot_id = uniprot_id
-		self.feature_type = t
+		self.feature_type = t.encode("ascii")
 		self.description = description
 		self.location = [a-1 for a in location] #convert to 0-indexing
 		self.start = int(self.location[0])
@@ -106,6 +123,7 @@ def get_feature_data_from_uniprot_xml(uniprot_id):
 	return Uniprot
 
 if __name__ == '__main__':
+	print excluded_annotations
 	analyzed_file = open(sys.argv[1])
 	out_file = open(sys.argv[2], 'w')
 	# throw out header
@@ -138,7 +156,7 @@ if __name__ == '__main__':
 				for feature in features:
 					mod_index = uniprot.mod_index_in_protein(peptide)
 					if feature.start <= mod_index <= feature.end:
-						if feature.length < 30:
+						if feature.feature_type not in excluded_annotations:
 							stats[feature.feature_type] = stats.setdefault(feature.feature_type, 0) + 1
 						feature_dict[peptide][1].setdefault(u_id, []).append(feature)
 						#out_file.write( "\t\t%s\t%s\t%s%s\t%s\t%s\n" % (feature.feature_type,feature.description,mod_index,feature.protein_seq[mod_index],feature.location,feature.end-feature.start+1))
@@ -154,8 +172,10 @@ if __name__ == '__main__':
 		for u_id, features in feature_dict[peptide][1].items():
 			uniprot = uniprot_entries[u_id]
 			mod_index = uniprot.mod_index_in_protein(peptide)
-
-			relevant_features = [f for f in features if f.length < 30]
+			print [f.feature_type for f in features]
+			relevant_features = [f for f in features if f.feature_type not in excluded_annotations]
+			print [f.feature_type for f in relevant_features]
+			print
 			if len(relevant_features) > 0:
 				annotated = True
 				out_file.write("\t\t%s\t%s\n" % (u_id, uniprot_entries[u_id].name))
