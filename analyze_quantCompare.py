@@ -21,14 +21,16 @@ class for storing peptide data
 contains close_match method to equate peptides that are truncated or extended
 '''
 class Peptide:
-	def __init__(self, seq, mod_locs, ptm_is, area_ratio, annotation, run_counter):
+	def __init__(self, seq, mod_locs, ptm_is, area_ratios, annotation, run_counter):
 		self.seq = seq
 		self.mod_locs = [i-1 for i in mod_locs]
-		self.area_ratio = area_ratio
+		self.area_ratios = area_ratios
 		self.annotation = annotation
 		self.uniprot_ids = []
 		self.ptm_indices = ptm_is
 		self.run_counter = run_counter
+
+		self.area_ratio = sum(area_ratios)/len(area_ratios)
 		# find all the valid uniprot ids that it matched with 
 		for ann in annotation.split("#"):
 			ann = ann.strip()
@@ -129,9 +131,13 @@ def get_peptide_data_if_eligible(data):
 	
 	ptm_idxs = [a for a in set(data[1].split("#")) if not a.startswith("M") and not a == "NA"]
 	seq, mod_locs, offset = process_modifications(data[0], excepted_modifications)
-	area_ratio  = float(data[5])
+
+	# get all area ratios that were combined into single
+	area_ratios = [float(a) for a in re.split("[#;]", data[3]) if a and a != 'X']
+
+	
 	annotation = data[22]
-	peptide = Peptide(seq, mod_locs, ptm_idxs, area_ratio, annotation, run_counter)
+	peptide = Peptide(seq, mod_locs, ptm_idxs, area_ratios, annotation, run_counter)
 
 	return peptide
 
@@ -179,12 +185,12 @@ def write_data_from_peptide_list(pep_list,outfile,reverse = False, verbose = Fal
 		peptide_seq = pep.seq
 		mod_locs = pep.mod_locs
 		annotation = pep.annotation
-		ar = 0
+		ars = []
 		total_original_runs = 0
 		for pep_a in pep_group:
 			total_original_runs += pep_a.run_count()
-			ar += pep_a.area_ratio * pep_a.run_count()
-		ar = ar/(total_original_runs) # calculate average area ratio
+			ars += pep_a.area_ratios
+		ar = sum(ars)/len(ars)
 		if reverse:
 			try:
 				ar = 1./ar
@@ -193,7 +199,7 @@ def write_data_from_peptide_list(pep_list,outfile,reverse = False, verbose = Fal
 		
 		if verbose: # print all peptides from a group
 			for p in pep_group:
-				outfile.write("%s,%s,%s,%s,%s,%s\n" % (p.peptide_string(),' '.join(p.ptm_indices), str(ar) + "," + str(p.area_ratio), p.uniprot_ids_str(), p.annotation, p.run_count()))
+				outfile.write("%s,%s,%s,%s,%s,%s\n" % (p.peptide_string(),' '.join(p.ptm_indices), str(ar) + "," + str(';'.join([str(a) for a in p.area_ratios])), p.uniprot_ids_str(), p.annotation, p.run_count()))
 		else:	
 			outfile.write("%s,%s,%s,%s,%s,%s\n" % (pep.peptide_string(),' '.join(pep.ptm_indices), ar, pep.uniprot_ids_str(), pep.annotation, run_count))
 
