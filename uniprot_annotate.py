@@ -21,7 +21,12 @@ excluded_annotations = [
 "sequence variant",
 "cross-link",
 "short sequence motif",
-"chain"]
+"region of interest",
+"transmembrane region",
+"transit peptide",
+"site",
+"coiled-coil region",
+"signal peptide"]
 
 class Feature:
 	def __init__(self, uniprot_id, t, description, location):
@@ -155,9 +160,13 @@ if __name__ == '__main__':
 			if uniprot and features:
 				for feature in features:
 					mod_index = uniprot.mod_index_in_protein(peptide)
+					# if the modifiction is within the feature
 					if feature.start <= mod_index <= feature.end:
-						if feature.feature_type not in excluded_annotations:
+						# and the feature isnt too long or of an excluded type
+						if feature.feature_type not in excluded_annotations and feature.length <= 30:
+							# keep track of each type of feature
 							stats[feature.feature_type] = stats.setdefault(feature.feature_type, 0) + 1
+						# and add it to the dictionary of features for each peptide 
 						feature_dict[peptide][1].setdefault(u_id, []).append(feature)
 						#out_file.write( "\t\t%s\t%s\t%s%s\t%s\t%s\n" % (feature.feature_type,feature.description,mod_index,feature.protein_seq[mod_index],feature.location,feature.end-feature.start+1))
 	for ftype, count in stats.items():
@@ -172,21 +181,23 @@ if __name__ == '__main__':
 		for u_id, features in feature_dict[peptide][1].items():
 			uniprot = uniprot_entries[u_id]
 			mod_index = uniprot.mod_index_in_protein(peptide)
-			print [f.feature_type for f in features]
-			relevant_features = [f for f in features if f.feature_type not in excluded_annotations]
-			print [f.feature_type for f in relevant_features]
-			print
+			# even if the feature is "excluded" we still show it in the spread sheet
+			relevant_features = [f for f in features if f.length <= 30]
+			#print [f.feature_type for f in relevant_features]
+
 			if len(relevant_features) > 0:
-				annotated = True
+
 				out_file.write("\t\t%s\t%s\n" % (u_id, uniprot_entries[u_id].name))
 				for feature in relevant_features:
+					if feature.feature_type not in excluded_annotations:
+						annotated = True
 					out_file.write( "\t\t\t%s\t%s\t%s%s\t%s\t%s\n" % (feature.feature_type,feature.description,uniprot.seq[mod_index],mod_index+1,feature.location,feature.length))
 			else:
 				out_file.write("\t\t%s\t%s\tNo relevant annotation\t%s%s\n" % (u_id, uniprot_entries[u_id].name,uniprot.seq[mod_index],mod_index+1))
 				
 		if annotated:
 			annotation_count += 1
-		#out_file.write("\t\t\t\t\t\t\t\t%s\t%s\n" % (area_ratio, int(annotated)))
+		
 
 
 	out_file.write("\nTotal Peptides: %s\nAnnotated: %s\n\n" % (len(feature_dict.keys()), annotation_count))
