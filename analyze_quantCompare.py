@@ -29,14 +29,17 @@ class Peptide:
 		self.uniprot_ids = []
 		self.ptm_indices = ptm_is
 		self.run_counter = run_counter
-
 		self.area_ratio = sum(area_ratios)/len(area_ratios)
 		# find all the valid uniprot ids that it matched with 
+
+
 		for ann in annotation.split("#"):
 			ann = ann.strip()
 			match = re.match('([OPQ][0-9][A-Z0-9]{3}[0-9]|[A-NR-Z][0-9]([A-Z][A-Z0-9]{2}[0-9]){1,2})', ann) # regex for matching uniprot IDs from http://www.uniprot.org/help/accession_numbers
 			if match:
 				self.uniprot_ids.append(match.group())
+
+		self.decoy = ("Reverse_" in annotation)
 
 
 	'''
@@ -185,11 +188,18 @@ def write_data_from_peptide_list(pep_list,outfile,reverse = False, verbose = Fal
 		peptide_seq = pep.seq
 		mod_locs = pep.mod_locs
 		annotation = pep.annotation
-		ars = []
+		ars = all_ratios_in_group(pep_group)
 		total_original_runs = 0
 		for pep_a in pep_group:
 			total_original_runs += pep_a.run_count()
-			ars += pep_a.area_ratios
+		lowest = min(ars)
+
+		cutoff = 0.0
+		if more_than_one_high_variance_ratio(ars, cutoff):
+			print ars, annotation
+			replace_ratios(pep_group, cutoff, lowest)
+		ars = all_ratios_in_group(pep_group)
+
 		ar = sum(ars)/len(ars)
 		if reverse:
 			try:
@@ -224,6 +234,32 @@ def parse_input():
 	return open(args.in_file), open(args.out_file, 'w'), args.reverse, args.verbose
 
 
+def more_than_one_high_variance_ratio(ratio_list, cutoff):
+	return sum(ratio_list)/len(ratio_list) > cutoff and len([a for a in ratio_list if a < cutoff/1.5]) > 1
+
+
+def replace_ratios(pep_group, cutoff, lowest):
+	
+	
+	new_pg = []
+	for p in pep_group:
+		p.area_ratios
+		new_ratios = []
+		for r in p.area_ratios:
+			if r > cutoff:
+				new_ratios.append(lowest)
+			else:
+				new_ratios.append(r)
+		p.area_ratios = new_ratios
+		#new_pg.append(p)
+	#return new_pg
+
+def all_ratios_in_group(pep_group):
+	ars = []
+	for pep in pep_group:
+		ars += pep.area_ratios
+	return ars
+
 
 if __name__ =='__main__':
 	quantc_file, out_file, reverse, verbose = parse_input()
@@ -241,7 +277,7 @@ if __name__ =='__main__':
 		
 
 		peptide = get_peptide_data_if_eligible(data) # create a new peptide instance if the peptide appears in > 1 run
-		if peptide != None:
+		if peptide != None and not peptide.decoy:
 			add_peptide_to_dict(pep_list, peptide) # add it to the list of peptides
 		
 
