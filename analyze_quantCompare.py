@@ -16,6 +16,13 @@ from string import ascii_uppercase # simple list of uppercase letters
 
 excepted_modifications = ["15.994915"]
 
+DATA_LINE_LENGTH = 22
+
+CUTOFF_RATIO = 0.0
+CUTOFF_MODIFIER = 1.0
+MIN_RUN_COUNT = 2
+
+
 '''
 class for storing peptide data
 contains close_match method to equate peptides that are truncated or extended
@@ -117,6 +124,10 @@ def process_modifications(pep, ex_mods, ptm_ind = None):
 '''
 fetch the data from the line and create a new peptide instance with relevant data
 filter out peptides that appeared in only one run at the end, after merging
+
+PTM index: 1
+Area rations: 5
+annoation data: 22
 '''
 def get_peptide_data_if_eligible(data):
 	
@@ -136,14 +147,22 @@ def get_peptide_data_if_eligible(data):
 	seq, mod_locs, offset = process_modifications(data[0], excepted_modifications)
 
 	# get all area ratios that were combined into single
-	area_ratios = [float(a) for a in re.split("[#;]", data[3]) if a and a != 'X']
 
+	area_ratios = [float(a) for a in re.split("[#;]", data[5]) if a and a != 'X']
+	if reverse:
+		area_ratios = [reverse_ratios(a) for a in area_ratios]
 	
-	annotation = data[22]
+	annotation = data[21]
 	peptide = Peptide(seq, mod_locs, ptm_idxs, area_ratios, annotation, run_counter)
 
 	return peptide
 
+def reverse_ratios(ratio):
+	if ratio == 1000:
+		return 0.0
+	if ratio == 0.0:
+		return 1000
+	return 1./ratio
 '''
 Adds the peptide to the big nested list of modified peptides
 keeps track of all "identical" peptides for review
@@ -194,18 +213,14 @@ def write_data_from_peptide_list(pep_list,outfile,reverse = False, verbose = Fal
 			total_original_runs += pep_a.run_count()
 		lowest = min(ars)
 
-		cutoff = 0.0
-		if more_than_one_high_variance_ratio(ars, cutoff):
+		cutoff = CUTOFF_RATIO
+		if more_than_one_high_variance_ratio(ars, cutoff, CUTOFF_MODIFIER):
 			print ars, annotation
 			replace_ratios(pep_group, cutoff, lowest)
 		ars = all_ratios_in_group(pep_group)
 
 		ar = sum(ars)/len(ars)
-		if reverse:
-			try:
-				ar = 1./ar
-			except ZeroDivisionError:
-				ar = 'inf'
+		
 		
 		if verbose: # print all peptides from a group
 			for p in pep_group:
@@ -234,8 +249,8 @@ def parse_input():
 	return open(args.in_file), open(args.out_file, 'w'), args.reverse, args.verbose
 
 
-def more_than_one_high_variance_ratio(ratio_list, cutoff):
-	return sum(ratio_list)/len(ratio_list) > cutoff and len([a for a in ratio_list if a < cutoff/1.5]) > 1
+def more_than_one_high_variance_ratio(ratio_list, cutoff, cutoff_modifer):
+	return sum(ratio_list)/len(ratio_list) > cutoff and len([a for a in ratio_list if a < cutoff/cutoff_modifer]) >= 1
 
 
 def replace_ratios(pep_group, cutoff, lowest):
@@ -254,6 +269,8 @@ def replace_ratios(pep_group, cutoff, lowest):
 		#new_pg.append(p)
 	#return new_pg
 
+
+
 def all_ratios_in_group(pep_group):
 	ars = []
 	for pep in pep_group:
@@ -266,6 +283,7 @@ if __name__ =='__main__':
 	#quantc_file.readline() #throw out header line
 
 	pep_list = []
+	headers = quantc_file.readline()
 
 	for line in quantc_file:
 		'''
@@ -275,14 +293,17 @@ if __name__ =='__main__':
 		data = line.split(",") # split on " because of terrible formatting by ip2 and no XML availability
 		data = [a.strip("\"") for a in data] # strip off excess quotes
 		
-
-		peptide = get_peptide_data_if_eligible(data) # create a new peptide instance if the peptide appears in > 1 run
-		if peptide != None and not peptide.decoy:
-			add_peptide_to_dict(pep_list, peptide) # add it to the list of peptides
+		if len(data) == DATA_LINE_LENGTH:
+			peptide = get_peptide_data_if_eligible(data) # create a new peptide instance
+			if peptide != None and not peptide.decoy:
+				add_peptide_to_dict(pep_list, peptide) # add it to the list of peptides
+		else:
+			print data[0] + " Bad line, skipped"
 		
 
 	# cut off all peptides that appeared in < 2 runs
-	pep_list = [a for a in pep_list if pep_group_run_count(a) >= 2]
+	pep_list = [a for a in pep_list if pep_group_run_count(a) >= MIN_RUN_COUNT]
+
 	write_data_from_peptide_list(pep_list, out_file, reverse, verbose) # write the list of peptides to file
 
 
