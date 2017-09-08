@@ -126,13 +126,13 @@ fetch the data from the line and create a new peptide instance with relevant dat
 filter out peptides that appeared in only one run at the end, after merging
 
 PTM index: 1
+Run count data: 4
 Area rations: 5
 annoation data: 22
 '''
 def get_peptide_data_if_eligible(data):
 	
-	run_data = data[2].split(";")[:-1] # remove empty last spot
-	
+	run_data = data[4].split(";")[:-1] # remove empty last spot
 	run_counter = [a != 'X' for a in run_data]
 	
 	no_show_count = run_counter.count(False)
@@ -178,7 +178,8 @@ def add_peptide_to_dict(p_dict, pep):
 	return p_dict
 
 def pep_group_run_count(pep_group):
-	total_rcr = [False] * len(pep_group[0].run_counter)
+	
+	total_rcr = [False] * max([len(p.run_counter) for p in pep_group])
 	for pep in pep_group:
 		rc = pep.run_counter
 		for i, v in enumerate(rc):
@@ -303,7 +304,7 @@ if __name__ =='__main__':
 
 	# cut off all peptides that appeared in < 2 runs
 	pep_list = [a for a in pep_list if pep_group_run_count(a) >= MIN_RUN_COUNT]
-
+	
 	write_data_from_peptide_list(pep_list, out_file, reverse, verbose) # write the list of peptides to file
 
 
