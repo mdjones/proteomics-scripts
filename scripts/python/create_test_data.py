@@ -31,7 +31,7 @@ def scramble_string(word):
 
 def scramble_ip2(ip2_pep):
     match = re.match(ip2_pept_pattern, ip2_pep)
-    scrambled_pep = ''.format(scramble_string(match.group(1)), match.group(2), match.group(3))
+    scrambled_pep = '{0}{1}{2}'.format(scramble_string(match.group(1)), match.group(2), scramble_string(match.group(3)))
     return scrambled_pep
 
 def scramble_protein(protein):
