@@ -84,7 +84,7 @@ def create_filtered_data(peptide_list_file, sequence_patterns_file, file_type):
 
 def process_with_analyzeQuantComapare(out_dir, peptide_list_file):
 
-    python_bin = 'python'
+    python_bin = '/usr/bin/python'
     analyze_quant_comapare = './scripts/nomurarg-scripts/analyze_quantCompare.py'
 
     in_file = '{0}/{1}'.format(out_dir, peptide_list_file)
