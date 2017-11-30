@@ -108,7 +108,8 @@ def main(out_dir, peptide_list_file, sequence_patterns_file):
 
     df = create_filtered_data(peptide_list_file, sequence_patterns_file, file_type)
 
-    file_path = "{0}/{1}".format(out_dir, os.path.basename(peptide_list_file))
+    #file_path = "{0}/{1}".format(out_dir, os.path.basename(peptide_list_file))
+    file_path = "{0}/{1}".format(out_dir, 'peptideList.csv')
 
     ## Write file
     if file_type == 'CSV':
