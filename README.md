@@ -20,13 +20,13 @@ https://conda.io/docs/user-guide/install/index.html#regular-installation
 
 To install create the environment do the following.
 
-`
+```
 $ git clone https://github.com/mdjones/proteomics-scripts.git
 $ cd proteomics-scripts
 $ conda create --name  nb-cpact sqlalchemy pandas matplotlib seaborn pip
 $ source activate nb-cpact
 $ nosetests -s
-`
+```
 Note: Look into pyproteome
 
 
