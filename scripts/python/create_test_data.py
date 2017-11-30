@@ -35,7 +35,7 @@ def scramble_ip2(ip2_pep):
     return scrambled_pep
 
 def scramble_protein(protein):
-    is_decoy = protein.contains('Reverse_tr')
+    is_decoy = 'Reverse_tr' in protein
     protein = protein.replace('Reverse_tr', '')
 
     words = protein.split(r'[|\s]')
@@ -52,26 +52,27 @@ def scramble_protein(protein):
 
 def create_filtered_data(peptide_list_file, sequence_patterns_file, file_type):
     df = None
+
+    sequence_col = None
+    protein_col = None
     if file_type == 'CSV':
         df = pd.read_csv(peptide_list_file)
+        sequence_col = 'sequence'
+        protein_col = 'protein'
     elif file_type == 'TXT':
         df = pd.read_table(peptide_list_file, skiprows=24)
+        sequence_col = 'SEQUENCE'
+        protein_col = 'PROTEIN'
 
     patterns = pd.read_table(sequence_patterns_file, header=None)
 
     frames = []
     for pattern in patterns.iloc[:, 0]:
-        frames.append(df.filter(regex=pattern))
+        frames.append(df[df[sequence_col].str.match(pattern)])
 
     df = pd.concat(frames)
-    sequence_col = None
-    protein_col = None
-    if file_type == 'CSV':
-        sequence_col = 'SEQUENCE'
-        protein_col = 'PROTEIN'
-    elif file_type == 'TXT':
-        sequence_col = 'sequence'
-        protein_col = 'protein'
+
+
 
     df[sequence_col] = df[sequence_col].apply(scramble_ip2)
     df[protein_col] = df[protein_col].apply(scramble_protein)
@@ -105,7 +106,7 @@ def main(out_dir, peptide_list_file, sequence_patterns_file):
     elif peptide_list_file.endswith('csv'):
         file_type = 'TXT'
 
-    df = create_filtered_data(out_dir, peptide_list_file, sequence_patterns_file, file_type)
+    df = create_filtered_data(peptide_list_file, sequence_patterns_file, file_type)
 
     file_path = "{0}/{1}".format(out_dir, os.path.basename(peptide_list_file))
 
@@ -132,5 +133,5 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    main(args.root_dir, args.peptide_list_file, args.sequence_patterns)
+    main(args.out_dir, args.peptide_list_file, args.sequence_patterns)
 
