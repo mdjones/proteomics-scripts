@@ -23,7 +23,7 @@ To install create the environment do the following.
 ```
 $ git clone https://github.com/mdjones/proteomics-scripts.git
 $ cd proteomics-scripts
-$ conda create --name  nb-cpact sqlalchemy pandas matplotlib seaborn pip
+$ conda create --name  nb-cpact nose sqlalchemy pandas matplotlib seaborn pip
 $ source activate nb-cpact
 $ nosetests -s
 ```
