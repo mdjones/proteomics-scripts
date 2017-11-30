@@ -35,22 +35,25 @@ def scramble_ip2(ip2_pep):
     return scrambled_pep
 
 def scramble_protein(protein):
-    is_decoy = 'Reverse_tr' in protein
-    protein = protein.replace('Reverse_tr', '')
+    proteins = protein.split(',')
 
-    words = protein.split(r'[|\s]')
+    result = []
 
-    scrambled_prot = []
+    for protein in proteins:
+        scrambled_prot = []
+        if 'Reverse_tr' in protein:
+            protein = protein.replace('Reverse_tr|', '')
+            scrambled_prot.append('Reverse_tr|')
 
-    if is_decoy:
-        scrambled_prot.append('Reverse_tr')
+        protein = protein.split()
+        for word in protein:
+            #scrambled_prot.append(scramble_string(word))
+            scrambled_prot.append(word)
+        result.append(' '.join(scrambled_prot))
 
+    return ', '.join(result)
 
-    for word in words:
-        scrambled_prot.append(scramble_string(word))
-    return ''.join(scrambled_prot)
-
-def create_filtered_data(peptide_list_file, sequence_patterns_file, file_type):
+def scramble_data(peptide_list_file, file_type):
     df = None
 
     sequence_col = None
@@ -64,30 +67,32 @@ def create_filtered_data(peptide_list_file, sequence_patterns_file, file_type):
         sequence_col = 'SEQUENCE'
         protein_col = 'PROTEIN'
 
-    patterns = pd.read_table(sequence_patterns_file, header=None)
-
-    frames = []
-    for pattern in patterns.iloc[:, 0]:
-        frames.append(df[df[sequence_col].str.match(pattern)])
-
-    df = pd.concat(frames)
 
 
 
-    df[sequence_col] = df[sequence_col].apply(scramble_ip2)
-    df[protein_col] = df[protein_col].apply(scramble_protein)
+    #df[sequence_col] = df[sequence_col].apply(scramble_ip2)
+    #df[protein_col] = df[protein_col].apply(scramble_protein)
 
 
 
     return df
 
+def extract_by_sequence_pattern(out_dir, peptide_list_file, sequence_patterns_file):
+    #grep -E -f ${DIR}/peptideListGrepPatterns.txt ${PEP_LIST_IN} > ${TEST_DATA_DIR}/peptideList.csv
 
-def process_with_analyzeQuantComapare(out_dir, peptide_list_file):
+    out_file = '{0}/{1}'.format(out_dir, "peptideList.csv")
+
+    f = open(out_file, 'w')
+    cmd = ['egrep', '-f', sequence_patterns_file, peptide_list_file]
+    print(subprocess.run(cmd, stdout=f))
+
+
+def process_with_analyzeQuantComapare(out_dir):
 
     python_bin = '/usr/bin/python'
     analyze_quant_comapare = './scripts/nomurarg-scripts/analyze_quantCompare.py'
 
-    in_file = '{0}/{1}'.format(out_dir, peptide_list_file)
+    in_file = '{0}/{1}'.format(out_dir, "peptideList.csv")
     out_file = '{0}/{1}'.format(out_dir, "results.csv")
     ## "${PYTHON} ${ANALYZE_QUANT_SCRIPT} ${TEST_DATA_DIR}/peptideList.csv ${TEST_DATA_DIR}/results.csv"
     cmd = [python_bin, analyze_quant_comapare, in_file, out_file]
@@ -106,18 +111,18 @@ def main(out_dir, peptide_list_file, sequence_patterns_file):
     elif peptide_list_file.endswith('csv'):
         file_type = 'TXT'
 
-    df = create_filtered_data(peptide_list_file, sequence_patterns_file, file_type)
+    extract_by_sequence_pattern(out_dir, peptide_list_file, sequence_patterns_file)
 
-    #file_path = "{0}/{1}".format(out_dir, os.path.basename(peptide_list_file))
-    file_path = "{0}/{1}".format(out_dir, 'peptideList.csv')
+    testPeptideListFile = '{0}/{1}'.format(out_dir, "peptideList.csv")
+    df = scramble_data(testPeptideListFile, file_type)
 
     ## Write file
     if file_type == 'CSV':
-        df.to_csv(file_path, index=False)
+        df.to_csv(testPeptideListFile, index=False)
     elif file_type == 'TXT':
-        df.to_csv(file_path, index=False, sep="\t")
+        df.to_csv(testPeptideListFile, index=False, sep="\t")
 
-    process_with_analyzeQuantComapare(out_dir, os.path.basename(peptide_list_file))
+    process_with_analyzeQuantComapare(out_dir)
 
 
 if __name__ == "__main__":
