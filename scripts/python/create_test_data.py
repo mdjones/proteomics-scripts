@@ -26,7 +26,9 @@ ip2_pept_pattern = re.compile(r'(\w+)(C\(\d+\.\d+\))(\w+)')
 
 def scramble_string(word):
     word = list(word)
-    random.shuffle(word)
+
+    for i in range(1,10):
+        random.shuffle(word)
     return ''.join(word)
 
 def scramble_ip2(ip2_pep):
@@ -70,7 +72,7 @@ def scramble_data(peptide_list_file, file_type):
 
 
 
-    #df[sequence_col] = df[sequence_col].apply(scramble_ip2)
+    df[sequence_col] = df[sequence_col].apply(scramble_ip2)
     #df[protein_col] = df[protein_col].apply(scramble_protein)
 
 
