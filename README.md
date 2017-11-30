@@ -10,6 +10,26 @@ Proteome Discover (https://www.thermofisher.com/order/catalog/product/OPTON-3079
 
 ### How do I get set up? ###
 
+#### Dependencies ####
+
+Package and enviornment managment is done with conda.
+Miniconda is sufficient.
+https://conda.io/docs/user-guide/install/index.html#regular-installation
+
+#### Install and test ####
+
+To install create the environment do the following.
+
+`
+$ git clone https://github.com/mdjones/proteomics-scripts.git
+$ cd proteomics-scripts
+$ conda create --name  nb-cpact sqlalchemy pandas matplotlib seaborn pip
+$ source activate nb-cpact
+$ nosetests -s
+`
+Note: Look into pyproteome
+
+
 ### Contribution guidelines ###
 
 * Writing tests
