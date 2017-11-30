@@ -13,7 +13,7 @@
 __author__ = 'jonesmic'
 
 import  numpy as np
-from dpro.ucbre import AnalyzeQuantCompare, UcbreUtils
+from nbcpact.ucbre import AnalyzeQuantCompare, UcbreUtils
 
 import pkg_resources
 from nose.tools import nottest
