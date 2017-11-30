@@ -40,18 +40,13 @@ def scramble_protein(protein):
     proteins = protein.split(',')
 
     result = []
+    dummy_entry = 'Z9ZZZ5 Sofake (Fragment) OS=Homo sapiens GN=FAK PE=1 SV=1'
 
     for protein in proteins:
-        scrambled_prot = []
         if 'Reverse_tr' in protein:
-            protein = protein.replace('Reverse_tr|', '')
-            scrambled_prot.append('Reverse_tr|')
-
-        protein = protein.split()
-        for word in protein:
-            #scrambled_prot.append(scramble_string(word))
-            scrambled_prot.append(word)
-        result.append(' '.join(scrambled_prot))
+            result.append(protein)
+        else:
+            result.append(dummy_entry)
 
     return ', '.join(result)
 
@@ -69,13 +64,8 @@ def scramble_data(peptide_list_file, file_type):
         sequence_col = 'SEQUENCE'
         protein_col = 'PROTEIN'
 
-
-
-
     df[sequence_col] = df[sequence_col].apply(scramble_ip2)
-    #df[protein_col] = df[protein_col].apply(scramble_protein)
-
-
+    df[protein_col] = df[protein_col].apply(scramble_protein)
 
     return df
 
