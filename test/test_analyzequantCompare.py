@@ -13,7 +13,7 @@
 __author__ = 'jonesmic'
 
 import  numpy as np
-from nbcpact.ucbre import AnalyzeQuantCompare, UcbreUtils
+from nbcpact.ucbre import AnalyzeQuantCompare, UcbreUtils, DataAccessObject, PeptidesFromPeptideListBuilder
 
 import pkg_resources
 from nose.tools import nottest
@@ -52,7 +52,28 @@ def get_file_paths():
 def test_results_data_creation():
     path_dict = get_file_paths()
 
-    analyzeQuantCompare = AnalyzeQuantCompare(path_dict['peptideList'])
+    analyzeQuantCompare = AnalyzeQuantCompare(peptide_list_file=path_dict['peptideList'])
+
+    groups = analyzeQuantCompare.build_peptide_groups()
+    generated_results_csvDF = AnalyzeQuantCompare.build_results_from_peptide_groups(groups)
+
+    ucbResultsDF = UcbreUtils.read_results_csv(path_dict['results'])
+
+    compare_dataframes(ucbdf=ucbResultsDF, novdf=generated_results_csvDF,
+                       merge_cols=['Peptide'],
+                       identical_cols=['run_count', 'uniprot', 'annotations'],
+                       close_cols=['mean_group_ratio'],
+                       warn_cols=['ptm_index_from_ip2'])
+
+
+def test_results_data_creation_from_dao():
+    path_dict = get_file_paths()
+
+    peptide_generator = PeptidesFromPeptideListBuilder(peptide_list_file=path_dict['peptideList'])
+
+    #DataAccessObject.build_peptides(source=path_dict['peptideList'], peptide_generator=peptide_generator)
+
+    analyzeQuantCompare = AnalyzeQuantCompare(peptide_generator=peptide_generator, peptide_list_file=path_dict['peptideList'])
 
     groups = analyzeQuantCompare.build_peptide_groups()
     generated_results_csvDF = AnalyzeQuantCompare.build_results_from_peptide_groups(groups)
@@ -68,7 +89,7 @@ def test_results_data_creation():
 def test_results_verbose_data_creation():
     path_dict = get_file_paths()
 
-    analyzeQuantCompare = AnalyzeQuantCompare(path_dict['peptideList'])
+    analyzeQuantCompare = AnalyzeQuantCompare(peptide_list_file=path_dict['peptideList'])
 
     groups = analyzeQuantCompare.build_peptide_groups()
     generated_results_csvDF = AnalyzeQuantCompare.build_results_from_peptide_groups(groups, verbose=True)

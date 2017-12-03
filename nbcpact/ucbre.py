@@ -212,7 +212,7 @@ class UcbreUtils:
 
 class AnalyzeQuantCompare:
 
-    def __init__(self, peptide_list_file):
+    def __init__(self, peptide_generator = None, peptide_list_file=None):
         """
         Initialize this analyis with a peptide list
         :param peptide_list_file:
@@ -447,6 +447,141 @@ class AnalyzeQuantCompare:
 
         return peptides
 
+
+
+
+class PeptidesFromPeptideListBuilder:
+    """
+        Works with the peptideList.csv file that were delivered to Novartis in December. This code is derived from the
+        original analyzeQuantCompare script. The file may have a bug in the representation of array size is inconsistent.
+
+    """
+
+    def __init__(self, peptide_list_file):
+        self.__peptide_list_file = peptide_list_file
+
+    def __init_peptide(self, row):
+        peptide = Peptide(sequence=row['peptide'],
+                          mod_locs=row['mod_locs'],
+                          ptm_indices=row['ptm_indices'],
+                          area_ratio=row['file_AREA_MEDIAN_RATIO_1'],
+                          area_ratios=row['area_ratios'],
+                          annotation=row['annotation'],
+                          uniprot_ids=row['uniprot_ids'],
+                          run_counter=row['run_counter'],
+                          decoy=row['decoy'],
+                          unique1=row['UNIQUE_1'],
+                          ip2_peptide=row['ip2_peptide'])
+
+        return peptide
+
+
+    def __process_modifications(self, ip2_pep):
+        ## TODO: maybe should be inclusive instead of exclusive. i.e. retain IsoTop Only
+        excepted_modifications = ["15.994915"]
+
+        for ex in excepted_modifications:
+            ip2_pep = ip2_pep.replace("(%s)" % ex, "")
+
+        # pep_split = re.split('[\(\)]', pep) # split on parenthsis
+        # assume only one modified residue per peptide
+        mod_locs = []
+        i = 0
+        for char in ip2_pep:
+            if char == '(':
+                mod_locs.append(i)
+            if char in ascii_uppercase:
+                i += 1
+
+        return mod_locs
+
+    def generate_peptides(self):
+        '''
+        Works with the peptideList.csv file that were delivered to Novartis in December. These have a bug in the
+        representation of array size is inconsistent.
+
+        :param peptideListCsv: a row in the data file.
+        :return: A peptide iterator
+        '''
+
+
+        # Read the CSV file and convert to a dataframe
+        df = pd.read_csv(self.__peptide_list_file)
+
+        data = {}
+
+        ## Clean up dataframe
+        df = df[~df['PTM_INDEX'].isnull()]
+
+        ## Transfer some values directly
+        data['annotation'] = df['protein']
+        data['file_AREA_MEDIAN_RATIO_1'] = df['AREA_MEDIAN_RATIO_1']
+        data['UNIQUE_1'] = df['UNIQUE_1']
+
+        # Clean up df
+        ## Nothing to see here yet.
+
+        # declare decoys
+        data['decoy'] = (df['protein'].str.contains('Reverse_'))
+
+        # Extract uniprot IDs from annotation
+        """
+        From http://www.uniprot.org/help/accession_numbers
+        #'([OPQ][0-9][A-Z0-9]{3}[0-9]|[A-NR-Z][0-9]([A-Z][A-Z0-9]{2}[0-9]){1,2})
+
+        """
+        uniprot_rx = re.compile(r'\b([OPQ]\d[A-Z0-9]{3}\d|[A-NR-Z]\d([A-Z][A-Z0-9]{2}\d){1,2})\b')
+        data['uniprot_ids'] = list(df['protein'].str.extractall(uniprot_rx).iloc[:, 0].unstack().values)
+
+        # Process mods
+        data['mod_locs'] = df['sequence'].apply(self.__process_modifications)
+        data['peptide'] = df['sequence'].str.replace('\([\d.]+\)', '')
+        data['ip2_peptide'] = df['sequence']
+
+        # Global mod indexes
+        ## ptm_idxs = [a for a in set(data[1].split("#")) if not a.startswith("M") and not a == "NA"]
+        ## Then later ' '.join(p.ptm_indices)
+        data['ptm_indices'] = df['PTM_INDEX'].apply(
+            lambda x: [a for a in x.split(',') if not a.startswith("M") and not a == "NA"])
+
+        # data['ptm_indices'] = data['ptm_indices'].apply(lambda x : ' '.join(x))
+
+        # TODO: Need to understand what the semicolon means.
+        # Looks like area_ratio this is already in the peptide file. Why is it being recalulated?
+
+        data['area_ratios'] = df['AREA_RATIO_ALL_1'].apply(
+            lambda x: [float(a) for a in re.split('[,;]', x) if a and a != 'X'])
+
+        ## Get area ratios withough the Xs
+        data['run_data'] = df['UNIQUE_1'].apply(lambda x: x.split(";")[:-1])
+        data['run_counter'] = data['run_data'].apply(lambda x: [a != 'X' for a in x])
+
+        resultDF = pd.DataFrame(data)
+        ## Remove None from Uniprot
+        resultDF['uniprot_ids'] = resultDF['uniprot_ids'].apply(lambda L: [x for x in L if x is not None])
+
+        peptides = resultDF.apply(self.__init_peptide, axis=1)
+
+        return peptides
+
+class DataAccessObject:
+
+    @staticmethod
+    def build_peptides(self, source=None, peptide_generator=None):
+        """
+
+        Parameters
+        ----------
+        source : the data source such as a file, directory, or database connection.
+        peptide_generator : a class with generate_peptides method that converts the input to a peptide iterator.
+        The data source such as a file, directory, or database connection.
+
+        Returns
+        -------
+        an iterator of peptides.
+        """
+
+        return peptide_generator.generate_peptides(source)
 
 
 
