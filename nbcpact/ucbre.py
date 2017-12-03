@@ -343,6 +343,7 @@ class PeptidesFromPeptideListBuilder:
 
 
     def __process_modifications(self, ip2_pep):
+        ## This finds the local location of a isoTop mod in a peptide.
         ## TODO: maybe should be inclusive instead of exclusive. i.e. retain IsoTop Only
         excepted_modifications = ["15.994915"]
 
