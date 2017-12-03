@@ -52,7 +52,8 @@ def get_file_paths():
 def test_results_data_creation():
     path_dict = get_file_paths()
 
-    analyzeQuantCompare = AnalyzeQuantCompare(peptide_list_file=path_dict['peptideList'])
+    peptide_generator = PeptidesFromPeptideListBuilder(peptide_list_file=path_dict['peptideList'])
+    analyzeQuantCompare = AnalyzeQuantCompare(peptide_generator=peptide_generator)
 
     groups = analyzeQuantCompare.build_peptide_groups()
     generated_results_csvDF = AnalyzeQuantCompare.build_results_from_peptide_groups(groups)
@@ -66,14 +67,10 @@ def test_results_data_creation():
                        warn_cols=['ptm_index_from_ip2'])
 
 
-def test_results_data_creation_from_dao():
+def test_results_data_creation_from_peptide_generator():
     path_dict = get_file_paths()
-
     peptide_generator = PeptidesFromPeptideListBuilder(peptide_list_file=path_dict['peptideList'])
-
-    #DataAccessObject.build_peptides(source=path_dict['peptideList'], peptide_generator=peptide_generator)
-
-    analyzeQuantCompare = AnalyzeQuantCompare(peptide_generator=peptide_generator, peptide_list_file=path_dict['peptideList'])
+    analyzeQuantCompare = AnalyzeQuantCompare(peptide_generator=peptide_generator)
 
     groups = analyzeQuantCompare.build_peptide_groups()
     generated_results_csvDF = AnalyzeQuantCompare.build_results_from_peptide_groups(groups)
@@ -89,7 +86,8 @@ def test_results_data_creation_from_dao():
 def test_results_verbose_data_creation():
     path_dict = get_file_paths()
 
-    analyzeQuantCompare = AnalyzeQuantCompare(peptide_list_file=path_dict['peptideList'])
+    peptide_generator = PeptidesFromPeptideListBuilder(peptide_list_file=path_dict['peptideList'])
+    analyzeQuantCompare = AnalyzeQuantCompare(peptide_generator=peptide_generator)
 
     groups = analyzeQuantCompare.build_peptide_groups()
     generated_results_csvDF = AnalyzeQuantCompare.build_results_from_peptide_groups(groups, verbose=True)

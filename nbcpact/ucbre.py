@@ -218,6 +218,7 @@ class AnalyzeQuantCompare:
         :param peptide_list_file:
         """
         self.__peptide_list_file = peptide_list_file
+        self.__peptide_generator = peptide_generator
 
     @staticmethod
     def build_results_from_peptide_groups(groups, verbose=False, printextracols=False):
@@ -291,7 +292,7 @@ class AnalyzeQuantCompare:
         :param minruncount: group must represent at least this number of min runs. Defaults to 2
         :return: a list of peptide groups
         """
-        peptides = self.convert_peptideslist2peptides()
+        peptides = self.generate_peptides()
 
         filt_peps = list(filter(lambda p: not p.decoy, peptides))
 
@@ -317,16 +318,19 @@ class AnalyzeQuantCompare:
         return peptide_groups
 
 
-    def convert_peptideslist2peptides(self):
+    def generate_peptides(self):
         """
 
         :param file_path: the location of the peptide list file
         :return: A list of Peptide objects for each line in the file.
         """
 
-        df = self.read_peptide_list_file()
-        peptides = self.__get_peptides_from_data_frame(df)
-        return peptides
+        if(self.__peptide_generator):
+            return self.__peptide_generator.generate_peptides()
+        else:
+            df = self.read_peptide_list_file()
+            peptides = self.__get_peptides_from_data_frame(df)
+            return peptides
 
     def read_peptide_list_file(self):
         """
