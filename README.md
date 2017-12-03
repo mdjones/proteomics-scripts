@@ -13,7 +13,11 @@ Proteome Discover (https://www.thermofisher.com/order/catalog/product/OPTON-3079
 #### Dependencies ####
 
 Package and enviornment managment is done with conda.
-Miniconda is sufficient.
+Miniconda is sufficient. If you want to use the notebooks use Conda. You can also install conda
+after Miniconda is installed. 
+
+`$ conda install conda`
+
 https://conda.io/docs/user-guide/install/index.html#regular-installation
 
 #### Install and test ####
