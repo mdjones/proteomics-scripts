@@ -20,7 +20,7 @@ import pandas as pd
 
 class Peptide:
     """
-        This is adpted from from analyze_quantCompare.py
+        This is adopted from from analyze_quantCompare.py
     """
     annotation = None
     area_ratios = None
