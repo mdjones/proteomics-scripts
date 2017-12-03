@@ -179,7 +179,7 @@ class UcbreUtils:
     @staticmethod
     def read_results_csv(file_path):
         """
-        Read the CSV file and convert to a dataframe
+        Read the CSV file and convert to a dataframe. Useful for unit testing.
 
         results csv is missing the last column header
         :param file_path:
@@ -196,7 +196,7 @@ class UcbreUtils:
     @staticmethod
     def read_results_verbose_csv(file_path):
         """
-        Read the CSV file and convert to a dataframe
+        Read the CSV file and convert to a dataframe. Useful for unit testing.
 
         results csv is missing the last column header
         :param file_path:
@@ -446,5 +446,8 @@ class AnalyzeQuantCompare:
 
 
         return peptides
+
+
+
 
 
