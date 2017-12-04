@@ -12,4 +12,4 @@
 '''
 __author__ = 'jonesmic'
 
-from .ucbre import AnalyzeQuantCompare, Peptide, PeptideGroup, UcbreUtils
+from .ucbre import AnalyzeQuantCompare, Peptide, PeptideGroup, UcbreUtils, PeptidesFromPeptideListBuilder
