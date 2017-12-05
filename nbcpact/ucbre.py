@@ -40,7 +40,7 @@ class Peptide:
         :param ip2_peptide: Ex:  AFAFVTFADDQIAQSLC(470.29977)GEDLIIK this is the primary grouping key
         :param sequence: Ex:  AFAFVTFADDQIAQSLCGEDLIIK
         :param mod_locs: Ex:  [17]
-        :param ptm_indices: Ex:  ['C244;C244;C244;C244;C244']
+        :param ptm_indices: Ex:  Global indices ['C244;C244;C244;C244;C244']
         :param area_ratio: Ex:  1.78394 -- This comes from the AREA_MEDIAN_RATIO_1 in the peptideList.csv. It also is the median of the ratios.
         :param area_ratios: Ex:  [3.2027, 1.78394, 1.76109]
         :param annotation: Ex:  A0A087X260 TAR DNA-binding protein 43 OS=Homo sapiens GN=TARDBP PE=1 SV=1 , A0A087WYY0 TAR DNA-binding protein 43 OS=Homo sapiens GN=TARDBP PE=1 SV=1 , B1AKP7 TAR DNA-binding protein 43 OS=Homo sapiens GN=TARDBP PE=1 SV=1 , Q13148 TAR DNA-binding protein 43 OS=Homo sapiens GN=TARDBP PE=1 SV=1 , G3V162 TAR DNA binding protein, isoform CRA_d OS=Homo sapiens GN=TARDBP PE=1 SV=1 ,
