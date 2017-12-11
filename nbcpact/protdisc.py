@@ -198,7 +198,7 @@ class PDReader:
                         AbundanceRatios,
                         Abundances
                         FROM TargetPeptideGroups tpg
-                        WHERE AbundanceRatios IS NOT NULL LIMIT 10;
+                        WHERE AbundanceRatios IS NOT NULL;
                     """
 
             df = self.__read_data_frame(sqlStr)
