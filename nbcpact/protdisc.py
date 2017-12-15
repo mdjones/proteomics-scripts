@@ -31,13 +31,14 @@ class PDReader:
 
     def __init__(self, pd_result_file=None,
                  num_quant_channels=2,
+                 include_non_quant=False,
                  pd_version='2.1'):
 
         self.__num_quant_channels = num_quant_channels
 
         url = 'sqlite:///{0}'.format(pd_result_file)
         self.__engine = create_engine(url)
-
+        self.__include_non_quant = include_non_quant
         self.__pd_version = pd_version
         self.__data_cache = {}
 
@@ -64,20 +65,19 @@ class PDReader:
                 for i in range(n):
                     result.append(struct.unpack("i", binary_data[5 * i:5 * i + 4]))
 
-            if len(result) == 1:
-                result = result[0]
+
 
         # take care of the missing values
         else:
-            if dataType == DataType.Float:
-                result = [0.0] * n
-            elif (dataType == DataType.Integer):
-                result = [0] * n
+            result = [np.nan] * n
+
+        if len(result) == 1:
+            result = result[0]
 
         return result
 
     def __get_found_raw_files(self, targetPeptideGroupsPeptideGroupID):
-        df = self.get_target_psms()
+        df = self.__get_peptidegroupid_to_spectrumfile()
         df = df[df['TargetPeptideGroupsPeptideGroupID'] == targetPeptideGroupsPeptideGroupID]
 
         values = df['SpectrumFileName'].values
@@ -146,8 +146,10 @@ class PDReader:
             quan_value_pattern = re.compile(r'^QuanValue\w+$')
             quan_cols = []
             for column in inspector.get_columns('TargetPsms'):
-                if re.match(r'^QuanValue\w+$', column['name']):
+                if re.match(quan_value_pattern, column['name']):
                     quan_cols.append(column['name'])
+
+            quan_channel_filter = '' if self.__include_non_quant else ' AND QuanChannel IS NOT NULL'
 
             sqlStr = """
                         SELECT
@@ -161,71 +163,91 @@ class PDReader:
                         TargetPeptideGroupsPeptideGroupID,
                         {0}
                         FROM TargetPsms t1, TargetPeptideGroupsTargetPsms t2 
-                        WHERE t1.PeptideID = t2.TargetPsmsPeptideID AND QuanChannel IS NOT NULL
-                    """.format(','.join(quan_cols))
+                        WHERE t1.PeptideID = t2.TargetPsmsPeptideID {1}
+                    """.format(','.join(quan_cols), quan_channel_filter)
 
             self.__data_cache[data_name] = self.__read_data_frame(sqlStr)
 
         return self.__data_cache[data_name]
 
-    def get_target_peptides(self):
-        data_name = 'target_peptides'
-
+    def __get_peptidegroupid_to_spectrumfile(self):
+        data_name = 'peptide_to_file'
         if not data_name in self.__data_cache.keys():
+            quan_channel_filter = '' if self.__include_non_quant else ' AND QuanChannel IS NOT NULL'
+
             sqlStr = """
                         SELECT
-                        PeptideGroupID, 
-                        Checked,
-                        Confidence,
-                        ExcludedBy,
-                        Sequence,
-                        Modifications_all_positions,
-                        Modifications_best_positions,
-                        Contaminant,
-                        QvalityPEP,
-                        Qvalityqvalue,
-                        ParentProteinGroupCount,
-                        ParentProteinCount,
-                        PsmCount,
-                        MasterProteinAccessions,
-                        MissedCleavages,
-                        TheoreticalMass,
-                        QuanInfo,
-                        IonsScoreMascot,
-                        ConfidenceMascot,
-                        PercolatorqValueMascot,
-                        PercolatorPEPMascot,
-                        AbundanceRatios,
-                        Abundances
-                        FROM TargetPeptideGroups tpg
-                        WHERE AbundanceRatios IS NOT NULL;
-                    """
+                        SpectrumFileName,TargetPeptideGroupsPeptideGroupID
+                        FROM TargetPsms t1,TargetPeptideGroupsTargetPsms t2
+                        WHERE t1.PeptideID = t2.TargetPsmsPeptideID
+                        GROUP BY SpectrumFileName,TargetPeptideGroupsPeptideGroupID {0}
+                    """.format(quan_channel_filter)
 
-            df = self.__read_data_frame(sqlStr)
-
-            df['local_mod_locs'] = df['Modifications_best_positions'].apply(self.__get_local_mod_locations)
-            df['global_mod_locs'] = df.apply(self.__get_global_mod_locations, axis=1)
-
-            df['files'] = df['PeptideGroupID'].apply(self.__get_found_raw_files)
-
-            df['AbundanceRatios'] = df['AbundanceRatios'].apply(self.__extract_values, n=1, dataType=DataType.Float)
-            df['Abundances'] = df['Abundances'].apply(self.__extract_values,
-                                                      n=self.__num_quant_channels,
-                                                      dataType=DataType.Float)
-
-            df['Log2Ratio'] = df['AbundanceRatios'].apply(np.log2)
-
-            columns = ['Sequence',
-                       'Modifications_all_positions', 'Modifications_best_positions',
-                       'local_mod_locs', 'global_mod_locs',
-                       'QvalityPEP', 'Qvalityqvalue', 'ParentProteinGroupCount',
-                       'ParentProteinCount', 'PsmCount', 'MasterProteinAccessions',
-                       'Checked', 'Confidence', 'ExcludedBy', 'Contaminant',
-                       'MissedCleavages', 'TheoreticalMass', 'QuanInfo', 'IonsScoreMascot',
-                       'ConfidenceMascot', 'PercolatorqValueMascot', 'PercolatorPEPMascot',
-                       'AbundanceRatios', 'Log2Ratio', 'Abundances',
-                       'files']
-
-            self.__data_cache[data_name] = df[columns]
+            self.__data_cache[data_name] = self.__read_data_frame(sqlStr)
 
         return self.__data_cache[data_name]
+
+    def get_target_peptides(self, include_additional_data=True):
+        target_pep_data_name = 'target_peptides'
+        target_pep_plus = 'target_peptides_plus'
+
+
+        if not target_pep_data_name in self.__data_cache.keys():
+            df = self.__get_target_peptide_table()
+            self.__data_cache[target_pep_data_name] = df
+            if include_additional_data:
+                if not target_pep_plus in self.__data_cache.keys():
+                    df = self.__get_additional_target_peptide_data(df)
+                    self.__data_cache[target_pep_plus] = df
+
+        if include_additional_data:
+            return self.__data_cache[target_pep_plus]
+        else:
+            return self.__data_cache[target_pep_data_name]
+
+    def __get_target_peptide_table(self):
+        quan_channel_filter = '' if self.__include_non_quant else ' WHERE AbundanceRatios IS NOT NULL'
+
+        sqlStr = """
+                    SELECT
+                    PeptideGroupID, 
+                    Checked,
+                    Confidence,
+                    ExcludedBy,
+                    Sequence,
+                    Modifications_all_positions,
+                    Modifications_best_positions,
+                    Contaminant,
+                    QvalityPEP,
+                    Qvalityqvalue,
+                    ParentProteinGroupCount,
+                    ParentProteinCount,
+                    PsmCount,
+                    MasterProteinAccessions,
+                    MissedCleavages,
+                    TheoreticalMass,
+                    QuanInfo,
+                    IonsScoreMascot,
+                    ConfidenceMascot,
+                    PercolatorqValueMascot,
+                    PercolatorPEPMascot,
+                    AbundanceRatios,
+                    Abundances
+                    FROM TargetPeptideGroups tpg
+                    {0}
+            """.format(quan_channel_filter)
+
+        return self.__read_data_frame(sqlStr)
+
+    def __get_additional_target_peptide_data(self, df):
+        df['PeptideGroupID'] = df['PeptideGroupID']
+        df['Sequence'] = df['Sequence']
+        df['AbundanceRatios'] = df['AbundanceRatios'].apply(self.__extract_values, n=1, dataType=DataType.Float)
+        df['Abundances'] = df['Abundances'].apply(self.__extract_values, n=self.__num_quant_channels, dataType=DataType.Float)
+        df['Log2Ratio'] = df['AbundanceRatios'].apply(np.log2)
+
+        df['local_mod_locs'] = df['Modifications_best_positions'].apply(self.__get_local_mod_locations)
+        df['global_mod_locs'] = df.apply(self.__get_global_mod_locations, axis=1)
+        df['files'] = df['PeptideGroupID'].apply(self.__get_found_raw_files)
+
+        return df
