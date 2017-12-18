@@ -89,7 +89,7 @@ class PDReader:
         return mod_locs
 
     def __get_global_mod_locations(self, row):
-        local_mods = row['local_mod_locs']
+        local_mods = row['MOD_LOCS']
         local_mods = [re.match(r'(\w)(\d+)', mod).groups() for mod in local_mods]
         peptideGroupID = row['PeptideGroupID']
         peptide_sequence = row['Sequence']
@@ -188,66 +188,80 @@ class PDReader:
         return self.__data_cache[data_name]
 
     def get_target_peptides(self, include_additional_data=True):
-        target_pep_data_name = 'target_peptides'
-        target_pep_plus = 'target_peptides_plus'
-
-
-        if not target_pep_data_name in self.__data_cache.keys():
-            df = self.__get_target_peptide_table()
-            self.__data_cache[target_pep_data_name] = df
-            if include_additional_data:
-                if not target_pep_plus in self.__data_cache.keys():
-                    df = self.__get_additional_target_peptide_data(df)
-                    self.__data_cache[target_pep_plus] = df
-
+        targetPeptideGroupsTableDF = self.get_target_peptide_groups_table()
         if include_additional_data:
-            return self.__data_cache[target_pep_plus]
-        else:
-            return self.__data_cache[target_pep_data_name]
+            targetPeptideGroupsTableDF = targetPeptideGroupsTableDF.drop(labels=['AbundanceRatios', 'Abundances'], axis=1)
 
-    def __get_target_peptide_table(self):
+            additionalTargetPepDF = self.get_additional_target_peptide_data()
+            df = pd.merge(targetPeptideGroupsTableDF,
+                          additionalTargetPepDF,
+                          left_index=True,
+                          right_index=True,
+                          indicator=True)
+
+            assert df[df._merge != 'both'].empty, 'Invalid merge {}'.format(df[df['_merge'] != 'both'])
+
+            df = df.drop(labels=['_merge'], axis=1)
+            return df
+        else:
+            return targetPeptideGroupsTableDF
+
+    def get_target_peptide_groups_table(self):
         quan_channel_filter = '' if self.__include_non_quant else ' WHERE AbundanceRatios IS NOT NULL'
 
-        sqlStr = """
-                    SELECT
-                    PeptideGroupID, 
-                    Checked,
-                    Confidence,
-                    ExcludedBy,
-                    Sequence,
-                    Modifications_all_positions,
-                    Modifications_best_positions,
-                    Contaminant,
-                    QvalityPEP,
-                    Qvalityqvalue,
-                    ParentProteinGroupCount,
-                    ParentProteinCount,
-                    PsmCount,
-                    MasterProteinAccessions,
-                    MissedCleavages,
-                    TheoreticalMass,
-                    QuanInfo,
-                    IonsScoreMascot,
-                    ConfidenceMascot,
-                    PercolatorqValueMascot,
-                    PercolatorPEPMascot,
-                    AbundanceRatios,
-                    Abundances
-                    FROM TargetPeptideGroups tpg
-                    {0}
-            """.format(quan_channel_filter)
+        data_set_name = 'target_peptides'
+        if not data_set_name in self.__data_cache.keys():
+            sqlStr = """
+                        SELECT
+                        PeptideGroupID, 
+                        Checked,
+                        Confidence,
+                        ExcludedBy,
+                        Sequence,
+                        Modifications_all_positions,
+                        Modifications_best_positions,
+                        Contaminant,
+                        QvalityPEP,
+                        Qvalityqvalue,
+                        ParentProteinGroupCount,
+                        ParentProteinCount,
+                        PsmCount,
+                        MasterProteinAccessions,
+                        MissedCleavages,
+                        TheoreticalMass,
+                        QuanInfo,
+                        IonsScoreMascot,
+                        ConfidenceMascot,
+                        PercolatorqValueMascot,
+                        PercolatorPEPMascot,
+                        AbundanceRatios,
+                        Abundances
+                        FROM TargetPeptideGroups tpg
+                        {0}
+                """.format(quan_channel_filter)
 
-        return self.__read_data_frame(sqlStr)
+            self.__data_cache[data_set_name] = self.__read_data_frame(sqlStr)
 
-    def __get_additional_target_peptide_data(self, df):
-        df['PeptideGroupID'] = df['PeptideGroupID']
-        df['Sequence'] = df['Sequence']
-        df['AbundanceRatios'] = df['AbundanceRatios'].apply(self.__extract_values, n=1, dataType=DataType.Float)
-        df['Abundances'] = df['Abundances'].apply(self.__extract_values, n=self.__num_quant_channels, dataType=DataType.Float)
-        df['Log2Ratio'] = df['AbundanceRatios'].apply(np.log2)
+        return self.__data_cache[data_set_name]
 
-        df['local_mod_locs'] = df['Modifications_best_positions'].apply(self.__get_local_mod_locations)
-        df['global_mod_locs'] = df.apply(self.__get_global_mod_locations, axis=1)
-        df['files'] = df['PeptideGroupID'].apply(self.__get_found_raw_files)
+    def get_additional_target_peptide_data(self):
+        data_set_name = 'target_peptides_plus'
+        if not data_set_name in self.__data_cache.keys():
+            targetPeptideDF = self.get_target_peptide_groups_table()
+            df = pd.DataFrame(index=targetPeptideDF.index)
 
-        return df
+            df['FILES'] = targetPeptideDF['PeptideGroupID'].apply(self.__get_found_raw_files)
+            df['ABUNDANCE_RATIOS'] = targetPeptideDF['AbundanceRatios'].apply(self.__extract_values, n=1, dataType=DataType.Float)
+            df['ABUNDANCES'] = targetPeptideDF['Abundances'].apply(self.__extract_values, n=self.__num_quant_channels, dataType=DataType.Float)
+            df['ABUNDANCE_LOG2_RATIO'] = df['ABUNDANCE_RATIOS'].apply(np.log2)
+
+            df['MOD_LOCS'] = targetPeptideDF['Modifications_best_positions'].apply(self.__get_local_mod_locations)
+            df['Sequence'] = targetPeptideDF['Sequence']
+            df['PeptideGroupID'] = targetPeptideDF['PeptideGroupID']
+            df['GLOBAL_MOD_LOCS'] = df.apply(self.__get_global_mod_locations, axis=1)
+            df = df.drop(labels=['Sequence', 'PeptideGroupID'], axis=1)
+
+
+            self.__data_cache[data_set_name] = df
+
+        return self.__data_cache[data_set_name]
