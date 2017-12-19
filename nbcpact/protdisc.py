@@ -146,9 +146,13 @@ class PDReader:
 
             quan_value_pattern = re.compile(r'^QuanValue\w+$')
             quan_cols = []
+            all_cols = []
             for column in inspector.get_columns('TargetPsms'):
+                all_cols.append(column['name'])
                 if re.match(quan_value_pattern, column['name']):
                     quan_cols.append(column['name'])
+
+            assert len(quan_cols) > 0, 'No Quan columns detected -- TargetPsms columns {0}'.format(all_cols)
 
             quan_channel_filter = '' if self.__include_non_quant else ' AND QuanChannel IS NOT NULL'
 
