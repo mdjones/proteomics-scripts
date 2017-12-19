@@ -28,6 +28,7 @@ class DataType(Enum):
 
 class PDReader:
     __peptide_group_mod_pattern = re.compile(r'\[(\w\d+)\]')
+    url = None
 
     def __init__(self, pd_result_file=None,
                  num_quant_channels=2,
@@ -36,8 +37,8 @@ class PDReader:
 
         self.__num_quant_channels = num_quant_channels
 
-        url = 'sqlite:///{0}'.format(pd_result_file)
-        self.__engine = create_engine(url)
+        self.url = 'sqlite:///{0}'.format(pd_result_file)
+        self.__engine = create_engine(self.url)
         self.__include_non_quant = include_non_quant
         self.__pd_version = pd_version
         self.__data_cache = {}
