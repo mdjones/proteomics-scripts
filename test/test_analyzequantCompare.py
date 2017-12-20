@@ -13,7 +13,7 @@
 __author__ = 'jonesmic'
 
 import  numpy as np
-from nbcpact.ucbre import AnalyzeQuantCompare, UcbreUtils, DataAccessObject, PeptidesFromPeptideListBuilder
+from nbcpact.ucbre import AnalyzeQuantCompare, UcbreUtils, DataAccessObject, PeptidesFromPeptideListBuilder, Peptide, PeptideGroup
 
 import pkg_resources
 from nose.tools import nottest
@@ -137,3 +137,86 @@ def compare_dataframes(ucbdf=None, novdf=None, merge_cols=None, identical_cols=N
             diff_df = mergedDF[mergedDF[nov_col] != mergedDF[ubc_col]]
             if not diff_df.empty:
                 warnings.warn('Non matching values for {0} --- {1}'.format(col, diff_df.head()))
+
+def test_peptide_equality():
+    """
+     The peptide.close_match function may not give expected results in each case.
+     Example: It may fail on this partial overlap.
+
+             ABPDEKGHIJcK
+                   GHIJcK
+                   GHIJcKLMNOPQR
+
+    """
+
+    peptides = ['ABPDEKGHIJcK', 'GHIJcK', 'GHIJcKLMNOPQR']
+
+    print('Input peptides {0}'.format(peptides))
+    peptide_generator = MockPeptideGenerator(peptide_mod_seqs = peptides)
+    do_grouping(peptide_generator)
+
+    print('************************************************************')
+    peptides = ['ABPDEKGHIJcK', 'GHIJcKLMNOPQR']
+    print('Input peptides {0}'.format(peptides))
+    peptide_generator = MockPeptideGenerator(peptide_mod_seqs=peptides)
+    do_grouping(peptide_generator)
+
+
+
+def do_grouping(peptide_generator):
+    peptides = peptide_generator.generate_peptides()
+
+    peptide_groups = []
+
+    sequences = []
+    for pep in peptides:
+        sequences.append(pep.sequence)
+        for pep_group in peptide_groups:
+            if pep_group.contains_peptide(
+                    pep):  # "in" uses built-in __eq__ and __ne__ methods of pep to assess equivalence
+                pep_group.append(pep)
+
+        ## Not found so create new peptide group
+        peptideGroup = PeptideGroup(pep)
+        peptide_groups.append(peptideGroup)
+
+
+    group_num = 0
+    for group in peptide_groups:
+        group_peps = []
+        group_num += 1
+        for peptide in group.peptides():
+            group_peps.append(peptide.sequence)
+        print('Group{} {}'.format(group_num, group_peps))
+
+class MockPeptideGenerator:
+
+    def __init__(self, peptide_mod_seqs=None):
+        """
+
+        :param peptide_mod_seqs: a list of sequences with the Cys modifcation site in lower case. ['ABPDEKGHIJcK', 'GHIJcK', 'GHIJcKLMNOPQR']
+        """
+        self.__peptide_mod_seqs = peptide_mod_seqs
+
+    def generate_peptides(self):
+
+        peptides = []
+
+        for mod_seq in self.__peptide_mod_seqs:
+            peptide = Peptide(sequence=mod_seq.upper(),
+                              mod_locs=[mod_seq.index('c')],
+                              ptm_indices=None,
+                              area_ratio=1.3,
+                              area_ratios=[1.2, 1.4, 1.3],
+                              annotation=None,
+                              uniprot_ids=None,
+                              run_counter=None,
+                              decoy=None,
+                              unique1=None,
+                              ip2_peptide=None)
+
+            peptides.append(peptide)
+
+        return peptides
+
+
