@@ -67,6 +67,15 @@ class Peptide:
     '''
     If one of the peptides is contained within another one, they are equivalent IF:
     the have diffmods in the same place
+    
+    TODO: MDJ -- This will not catch partial overlap. See unit test
+    
+             ABCDEK
+             ABCDEKGHIJCK
+                   GHIJCK
+                   GHIJCKLMNOPQR
+                        
+            
     '''
 
     def close_match(self, pep2):
