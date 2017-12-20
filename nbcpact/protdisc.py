@@ -184,8 +184,8 @@ class PDReader:
                         SELECT
                         SpectrumFileName,TargetPeptideGroupsPeptideGroupID
                         FROM TargetPsms t1,TargetPeptideGroupsTargetPsms t2
-                        WHERE t1.PeptideID = t2.TargetPsmsPeptideID
-                        GROUP BY SpectrumFileName,TargetPeptideGroupsPeptideGroupID {0}
+                        WHERE t1.PeptideID = t2.TargetPsmsPeptideID {0}
+                        GROUP BY SpectrumFileName,TargetPeptideGroupsPeptideGroupID
                     """.format(quan_channel_filter)
 
             self.__data_cache[data_name] = self.__read_data_frame(sqlStr)
