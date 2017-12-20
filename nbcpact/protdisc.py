@@ -137,44 +137,6 @@ class PDReader:
 
         return self.__data_cache[data_name]
 
-    def get_target_psms(self):
-        data_name = 'target_psms'
-
-        if not data_name in self.__data_cache.keys():
-            ## Get Quan columns
-            inspector = inspect(self.__engine)
-
-            quan_value_pattern = re.compile(r'^QuanValue\w+$')
-            quan_cols = []
-            all_cols = []
-            for column in inspector.get_columns('TargetPsms'):
-                all_cols.append(column['name'])
-                if re.match(quan_value_pattern, column['name']):
-                    quan_cols.append(column['name'])
-
-            assert len(quan_cols) > 0, 'No Quan columns detected -- TargetPsms columns {0}'.format(all_cols)
-
-            quan_channel_filter = '' if self.__include_non_quant else ' AND QuanChannel IS NOT NULL'
-
-            sqlStr = """
-                        SELECT
-                        Sequence,
-                        ModifiedSequence,
-                        Modifications,
-                        ParentProteinAccessions,
-                        ParentProteinDescriptions,
-                        SpectrumFileName,
-                        QuanChannel,
-                        TargetPeptideGroupsPeptideGroupID,
-                        {0}
-                        FROM TargetPsms t1, TargetPeptideGroupsTargetPsms t2 
-                        WHERE t1.PeptideID = t2.TargetPsmsPeptideID {1}
-                    """.format(','.join(quan_cols), quan_channel_filter)
-
-            self.__data_cache[data_name] = self.__read_data_frame(sqlStr)
-
-        return self.__data_cache[data_name]
-
     def __get_peptidegroupid_to_spectrumfile(self):
         data_name = 'peptide_to_file'
         if not data_name in self.__data_cache.keys():
