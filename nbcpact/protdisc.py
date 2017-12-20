@@ -218,14 +218,13 @@ class PDReader:
         if not data_set_name in self.__data_cache.keys():
             sqlStr = """
                         SELECT
-                        PeptideGroupID, 
+                        PeptideGroupID,
                         Checked,
                         Confidence,
                         ExcludedBy,
                         Sequence,
                         Modifications_all_positions,
                         Modifications_best_positions,
-                        Contaminant,
                         QvalityPEP,
                         Qvalityqvalue,
                         ParentProteinGroupCount,
@@ -235,10 +234,6 @@ class PDReader:
                         MissedCleavages,
                         TheoreticalMass,
                         QuanInfo,
-                        IonsScoreMascot,
-                        ConfidenceMascot,
-                        PercolatorqValueMascot,
-                        PercolatorPEPMascot,
                         AbundanceRatios,
                         Abundances
                         FROM TargetPeptideGroups tpg
