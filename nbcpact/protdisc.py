@@ -28,6 +28,7 @@ class DataType(Enum):
 
 class PDReader:
     __peptide_group_mod_pattern = re.compile(r'\[(\w\d+)\]')
+    __peptide_group_isotop_mod_pattern = re.compile(r'\d×IsoTOP [lLighthHeavy]+ \[(\w\d+)\]')
     url = None
 
     def __init__(self, pd_result_file=None,
@@ -85,12 +86,12 @@ class PDReader:
 
         return values
 
-    def __get_local_mod_locations(self, modifications):
-        mod_locs = re.findall(self.__peptide_group_mod_pattern, modifications)
+    def __get_local_mod_locations(self, modifications, patern=None):
+        mod_locs = re.findall(patern, modifications)
         return mod_locs
 
-    def __get_global_mod_locations(self, row):
-        local_mods = row['MOD_LOCS']
+    def __get_global_mod_locations(self, row, mod_col=None):
+        local_mods = row[mod_col]
         local_mods = [re.match(r'(\w)(\d+)', mod).groups() for mod in local_mods]
         peptideGroupID = row['PeptideGroupID']
         peptide_sequence = row['Sequence']
@@ -217,10 +218,20 @@ class PDReader:
             df['ABUNDANCES'] = targetPeptideDF['Abundances'].apply(self.__extract_values, n=self.__num_quant_channels, dataType=DataType.Float)
             df['ABUNDANCE_LOG2_RATIO'] = df['ABUNDANCE_RATIOS'].apply(np.log2)
 
-            df['MOD_LOCS'] = targetPeptideDF['Modifications_best_positions'].apply(self.__get_local_mod_locations)
+
             df['Sequence'] = targetPeptideDF['Sequence']
             df['PeptideGroupID'] = targetPeptideDF['PeptideGroupID']
-            df['GLOBAL_MOD_LOCS'] = df.apply(self.__get_global_mod_locations, axis=1)
+
+            df['MOD_LOCS'] = targetPeptideDF['Modifications_best_positions'].apply(
+                lambda x : self.__get_local_mod_locations(x, patern=self.__peptide_group_mod_pattern))
+            df['GLOBAL_MOD_LOCS'] = df.apply(
+                lambda x : self.__get_global_mod_locations(x, mod_col='MOD_LOCS'), axis=1)
+
+            df['ISOTOP_MOD_LOCS'] = targetPeptideDF['Modifications_best_positions'].apply(
+                lambda x: self.__get_local_mod_locations(x, patern=self.__peptide_group_isotop_mod_pattern))
+            df['GLOBAL_ISOTOP_LOCS'] = df.apply(
+                lambda x : self.__get_global_mod_locations(x, mod_col='ISOTOP_MOD_LOCS'), axis=1)
+
             df = df.drop(labels=['Sequence', 'PeptideGroupID'], axis=1)
 
 
