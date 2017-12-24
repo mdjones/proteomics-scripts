@@ -35,6 +35,13 @@ class PDReader:
                  num_quant_channels=2,
                  include_non_quant=False,
                  pd_version='2.1'):
+        """
+
+        :param pd_result_file:
+        :param num_quant_channels:
+        :param include_non_quant:
+        :param pd_version: - could get this from  SchemaInfo table in PDResults
+        """
 
         self.__num_quant_channels = num_quant_channels
 
