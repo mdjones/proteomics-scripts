@@ -163,7 +163,7 @@ class PDReader:
     def get_target_peptides(self, include_additional_data=True):
         targetPeptideGroupsTableDF = self.get_target_peptide_groups_table()
         if include_additional_data:
-            #targetPeptideGroupsTableDF = targetPeptideGroupsTableDF.drop(labels=['AbundanceRatios', 'Abundances'], axis=1)
+            targetPeptideGroupsTableDF = targetPeptideGroupsTableDF.drop(labels=['AbundanceRatios', 'Abundances'], axis=1)
 
             additionalTargetPepDF = self.get_additional_target_peptide_data()
             df = pd.merge(targetPeptideGroupsTableDF,
