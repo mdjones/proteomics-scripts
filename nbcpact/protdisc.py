@@ -19,6 +19,7 @@ import numpy as np
 from sqlalchemy import create_engine, inspect
 import pandas as pd
 import struct
+import xml.etree.ElementTree as ET
 
 
 class CDataType(Enum):
@@ -269,6 +270,10 @@ class PDReader:
             df['ABUNDANCE_LOG2_RATIO'] = df['ABUNDANCE_RATIOS'].apply(np.log2)
 
             df['ABUNDANCES'] = targetPeptideDF['Abundances'].apply(self.__extract_values)
+            named_abundances = self.__get_named_abundances(df['ABUNDANCES'])
+            for col in named_abundances.columns:
+                df[col] = named_abundances[col]
+
             df['QUANTILE_NORM_ABUNDANCE_RATIO']  = self.__quantile_normalized_ratio(df['ABUNDANCES'])
             df['QUANTILE_NORM_ABUNDANCE_LOG2_RATIO'] = df['QUANTILE_NORM_ABUNDANCE_RATIO'].apply(np.log2)
 
@@ -291,3 +296,18 @@ class PDReader:
             self.__data_cache[data_set_name] = df
 
         return self.__data_cache[data_set_name]
+
+    def __get_named_abundances(self, abundances_df):
+        xml_def = self.get_analysis_definition()
+        root = ET.fromstring(xml_def)
+
+        channels = []
+        channel_num = 1
+        for child in root.findall('./StudyDefinition/QuanMethods/QuanMethod/QuanChannels/QuanChannel'):
+            child_name = '{}_{}'.format(child.attrib['Name'], child.attrib['Position']).replace(' ', '_').upper()
+            channels.append(child_name)
+
+        df = abundances_df.apply(pd.Series)
+        df.columns = channels
+
+        return df
