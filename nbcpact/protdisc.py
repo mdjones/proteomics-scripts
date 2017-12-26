@@ -32,18 +32,14 @@ class PDReader:
     url = None
 
     def __init__(self, pd_result_file=None,
-                 num_quant_channels=2,
                  include_non_quant=False,
                  pd_version='2.1'):
         """
 
         :param pd_result_file:
-        :param num_quant_channels:
         :param include_non_quant:
         :param pd_version: - could get this from  SchemaInfo table in PDResults
         """
-
-        self.__num_quant_channels = num_quant_channels
 
         self.url = 'sqlite:///{0}'.format(pd_result_file)
         self.__engine = create_engine(self.url)
@@ -51,13 +47,12 @@ class PDReader:
         self.__pd_version = pd_version
         self.__data_cache = {}
 
-    def __extract_values(self, binary_data, n=None, dataType=None):
+    def __extract_values(self, binary_data, dataType=None):
         """
         Adapted from Tomas Reijtar Unicorn project
 
         values: bytes from the blob
-        n: number of channels
-        t: type of data
+        t: type of data (TODO: Infer from binary size)
             'decimal' for values in decimal format such as Abundances
             'integer_number' for values such as 'Found in'
 
@@ -67,13 +62,16 @@ class PDReader:
 
         if binary_data:
             if dataType == DataType.Float:
+                n = int(len(binary_data)/9)
                 for i in range(n):
                     sub = binary_data[9 * i:9 * i + 8]
                     result.append(struct.unpack("d", sub)[0])
-            else:
+            elif dataType == DataType.Integer:
+                n = len(binary_data)/5
                 for i in range(n):
                     result.append(struct.unpack("i", binary_data[5 * i:5 * i + 4]))
-
+            else:
+                raise ValueError('Unsupported DataType {}'.format(dataType))
 
 
         # take care of the missing values
@@ -165,7 +163,7 @@ class PDReader:
     def get_target_peptides(self, include_additional_data=True):
         targetPeptideGroupsTableDF = self.get_target_peptide_groups_table()
         if include_additional_data:
-            targetPeptideGroupsTableDF = targetPeptideGroupsTableDF.drop(labels=['AbundanceRatios', 'Abundances'], axis=1)
+            #targetPeptideGroupsTableDF = targetPeptideGroupsTableDF.drop(labels=['AbundanceRatios', 'Abundances'], axis=1)
 
             additionalTargetPepDF = self.get_additional_target_peptide_data()
             df = pd.merge(targetPeptideGroupsTableDF,
@@ -221,8 +219,8 @@ class PDReader:
             df = pd.DataFrame(index=targetPeptideDF.index)
 
             df['FILES'] = targetPeptideDF['PeptideGroupID'].apply(self.__get_found_raw_files)
-            df['ABUNDANCE_RATIOS'] = targetPeptideDF['AbundanceRatios'].apply(self.__extract_values, n=1, dataType=DataType.Float)
-            df['ABUNDANCES'] = targetPeptideDF['Abundances'].apply(self.__extract_values, n=self.__num_quant_channels, dataType=DataType.Float)
+            df['ABUNDANCE_RATIOS'] = targetPeptideDF['AbundanceRatios'].apply(self.__extract_values, dataType=DataType.Float)
+            df['ABUNDANCES'] = targetPeptideDF['Abundances'].apply(self.__extract_values, dataType=DataType.Float)
             df['ABUNDANCE_LOG2_RATIO'] = df['ABUNDANCE_RATIOS'].apply(np.log2)
 
 
