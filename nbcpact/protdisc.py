@@ -62,7 +62,15 @@ class PDReader:
         Long - 4 bytes
         Double - 8 bytes
 
-        values: C Struct represented as a python string (Ex:  b'\xe7rz\xec\xf8\xc2\xe2?\x01')
+        Parameters
+        ----------
+        binary_data
+                    C Struct represented as a python string (Ex:  b'\xe7rz\xec\xf8\xc2\xe2?\x01')
+
+        Returns
+                A single value or an array depending on the number of values in binary_data
+        -------
+
         """
 
         result = []
