@@ -79,7 +79,7 @@ class PDReader:
         elif (len(binary_data) % 5) == 0:
             dataType = CDataType.Long
         else:
-            raise ValueError('Can not determine DataType for binary {} of size {}'.format(binary_data, len(binary_data)))
+            raise ValueError('Cannot determine DataType for binary {} of size {}'.format(binary_data, len(binary_data)))
 
         if binary_data:
             if dataType == CDataType.Double:
