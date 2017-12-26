@@ -112,6 +112,21 @@ class PDReader:
 
         return values
 
+    def __quantile_normalized_ratio(self, abundances, max_ratio=100):
+        # Taken from
+        # https://stackoverflow.com/questions/37935920/quantile-normalization-on-pandas-dataframe
+
+        df = abundances.apply(pd.Series)
+        assert df.columns.size == 2, 'Can only take ratios of dataframes with 2 columns'
+
+        rank_mean = df.stack().groupby(df.rank(method='first').stack().astype(int)).mean()
+        df = df.rank(method='min').stack().astype(int).map(rank_mean).unstack()
+
+        min_ratio = 1/max_ratio
+        ratio = (df[0]/df[1]).replace(np.Infinity, max_ratio).replace(0, min_ratio)
+
+        return ratio
+
     def __get_local_mod_locations(self, modifications, patern=None):
         mod_locs = re.findall(patern, modifications)
         return mod_locs
@@ -200,6 +215,16 @@ class PDReader:
         else:
             return targetPeptideGroupsTableDF
 
+    def get_analysis_definition(self):
+        data_set_name = 'analysis_definition'
+        if not data_set_name in self.__data_cache.keys():
+            sqlStr = """
+                                Select AnalysisDefinitionXML FROM AnalysisDefinition"""
+
+            self.__data_cache[data_set_name] = self.__read_data_frame(sqlStr).iloc[0,0]
+
+        return self.__data_cache[data_set_name]
+
     def get_target_peptide_groups_table(self):
         quan_channel_filter = '' if self.__include_non_quant else ' WHERE AbundanceRatios IS NOT NULL'
 
@@ -241,9 +266,11 @@ class PDReader:
 
             df['FILES'] = targetPeptideDF['PeptideGroupID'].apply(self.__get_found_raw_files)
             df['ABUNDANCE_RATIOS'] = targetPeptideDF['AbundanceRatios'].apply(self.__extract_values)
-            df['ABUNDANCES'] = targetPeptideDF['Abundances'].apply(self.__extract_values)
             df['ABUNDANCE_LOG2_RATIO'] = df['ABUNDANCE_RATIOS'].apply(np.log2)
 
+            df['ABUNDANCES'] = targetPeptideDF['Abundances'].apply(self.__extract_values)
+            df['QUANTILE_NORM_ABUNDANCE_RATIO']  = self.__quantile_normalized_ratio(df['ABUNDANCES'])
+            df['QUANTILE_NORM_ABUNDANCE_LOG2_RATIO'] = df['QUANTILE_NORM_ABUNDANCE_RATIO'].apply(np.log2)
 
             df['Sequence'] = targetPeptideDF['Sequence']
             df['PeptideGroupID'] = targetPeptideDF['PeptideGroupID']
