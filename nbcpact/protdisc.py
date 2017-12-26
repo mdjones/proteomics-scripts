@@ -21,9 +21,10 @@ import pandas as pd
 import struct
 
 
-class DataType(Enum):
-    Float = 1
-    Integer = 2
+class CDataType(Enum):
+    #https: // www.tutorialspoint.com / cprogramming / c_data_types.htm
+    Double = 1
+    Long = 2
 
 
 class PDReader:
@@ -47,26 +48,38 @@ class PDReader:
         self.__pd_version = pd_version
         self.__data_cache = {}
 
-    def __extract_values(self, binary_data, dataType=None):
+    def __extract_values(self, binary_data):
         """
-        Adapted from Tomas Reijtar Unicorn project
+        Adapted from Tomas Reijtar Unicorn project.
 
-        values: bytes from the blob
-        t: type of data (TODO: Infer from binary size)
-            'decimal' for values in decimal format such as Abundances
-            'integer_number' for values such as 'Found in'
+        Number of values and type of data inferred from binary_data
+        See: https://www.tutorialspoint.com/cprogramming/c_data_types.htm
+        The binary data length will always be 1+length of data type. The first
+        byte represents the Byte Order, Size, and Alignment
+        (See: https://docs.python.org/2/library/struct.html)
 
+        So far the types we support are:
+        Long - 4 bytes
+        Double - 8 bytes
+
+        values: C Struct represented as a python string (Ex:  b'\xe7rz\xec\xf8\xc2\xe2?\x01')
         """
 
         result = []
+        if (len(binary_data) % 9) == 0:
+            dataType = CDataType.Double
+        elif (len(binary_data) % 5) == 0:
+            dataType = CDataType.Long
+        else:
+            raise ValueError('Can not determine DataType for binary {} of size {}'.format(binary_data, len(binary_data)))
 
         if binary_data:
-            if dataType == DataType.Float:
+            if dataType == CDataType.Double:
                 n = int(len(binary_data)/9)
                 for i in range(n):
                     sub = binary_data[9 * i:9 * i + 8]
                     result.append(struct.unpack("d", sub)[0])
-            elif dataType == DataType.Integer:
+            elif dataType == CDataType.Long:
                 n = len(binary_data)/5
                 for i in range(n):
                     result.append(struct.unpack("i", binary_data[5 * i:5 * i + 4]))
@@ -219,8 +232,8 @@ class PDReader:
             df = pd.DataFrame(index=targetPeptideDF.index)
 
             df['FILES'] = targetPeptideDF['PeptideGroupID'].apply(self.__get_found_raw_files)
-            df['ABUNDANCE_RATIOS'] = targetPeptideDF['AbundanceRatios'].apply(self.__extract_values, dataType=DataType.Float)
-            df['ABUNDANCES'] = targetPeptideDF['Abundances'].apply(self.__extract_values, dataType=DataType.Float)
+            df['ABUNDANCE_RATIOS'] = targetPeptideDF['AbundanceRatios'].apply(self.__extract_values)
+            df['ABUNDANCES'] = targetPeptideDF['Abundances'].apply(self.__extract_values)
             df['ABUNDANCE_LOG2_RATIO'] = df['ABUNDANCE_RATIOS'].apply(np.log2)
 
 
