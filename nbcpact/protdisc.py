@@ -30,7 +30,7 @@ class CDataType(Enum):
 
 class PDReader:
     __peptide_group_mod_pattern = re.compile(r'\[(\w\d+)\]')
-    __peptide_group_isotop_mod_pattern = re.compile(r'\d×IsoTOP [lLighthHeavy]+ \[(\w\d+)\]')
+    __peptide_group_isotop_mod_pattern = re.compile(r'\d×IsoTOP[\w ]*\[(\w\d+)\]', re.IGNORECASE)
     url = None
 
     def __init__(self, pd_result_file=None,
@@ -137,13 +137,17 @@ class PDReader:
         local_mods = [re.match(r'(\w)(\d+)', mod).groups() for mod in local_mods]
         peptideGroupID = row['PeptideGroupID']
         peptide_sequence = row['Sequence']
-        masterProteinAccessions = row['MasterProteinAccessions'].split('; ')
+        accessions = row['MasterProteinAccessions']
+        if accessions:
+            accessions = accessions.split('; ')
+        else:
+            accessions = []
 
         df = self.__get_target_proteins()
         df = df[df['TargetPeptideGroupsPeptideGroupID'] == peptideGroupID]
 
         peptide_starts = []
-        for accession in masterProteinAccessions:
+        for accession in accessions:
             proteinSequence = df[df['Accession'] == accession]['Sequence'].values
             assert len(proteinSequence) <= 1, 'More then one sequence returned for {} -- {}'.format(accession, proteinSequence)
             if len(proteinSequence) == 1:
@@ -164,7 +168,12 @@ class PDReader:
 
     def __create_protein_isotop_locs(self, row):
         locs = row['GLOBAL_ISOTOP_LOCS']
-        accessions = row['MasterProteinAccessions'].split('; ')
+        accessions = row['MasterProteinAccessions']
+        if accessions:
+            accessions = accessions.split('; ')
+        else:
+            accessions = []
+
         return ','.join([a + '_' + b for a, b in zip(accessions, locs)])
 
     def __read_data_frame(self, sql_string):
