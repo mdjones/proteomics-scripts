@@ -74,22 +74,22 @@ class PDReader:
 
         """
 
-        result = []
-        if (len(binary_data) % 9) == 0:
-            dataType = CDataType.Double
-        elif (len(binary_data) % 5) == 0:
-            dataType = CDataType.Long
-        else:
-            raise ValueError('Cannot determine DataType for binary {} of size {}'.format(binary_data, len(binary_data)))
-
         if binary_data:
+            result = []
+            if (len(binary_data) % 9) == 0:
+                dataType = CDataType.Double
+            elif (len(binary_data) % 5) == 0:
+                dataType = CDataType.Long
+            else:
+                raise ValueError('Cannot determine DataType for binary {} of size {}'.format(binary_data, len(binary_data)))
+
             if dataType == CDataType.Double:
                 n = int(len(binary_data)/9)
                 for i in range(n):
                     sub = binary_data[9 * i:9 * i + 8]
                     result.append(struct.unpack("d", sub)[0])
             elif dataType == CDataType.Long:
-                n = len(binary_data)/5
+                n = int(len(binary_data)/5)
                 for i in range(n):
                     result.append(struct.unpack("i", binary_data[5 * i:5 * i + 4]))
             else:
@@ -98,7 +98,7 @@ class PDReader:
 
         # take care of the missing values
         else:
-            result = [np.nan] * n
+            result = np.nan
 
         if len(result) == 1:
             result = result[0]
@@ -137,19 +137,21 @@ class PDReader:
         local_mods = [re.match(r'(\w)(\d+)', mod).groups() for mod in local_mods]
         peptideGroupID = row['PeptideGroupID']
         peptide_sequence = row['Sequence']
+        masterProteinAccessions = row['MasterProteinAccessions'].split('; ')
 
         df = self.__get_target_proteins()
-        proteinSequences = df[df['TargetPeptideGroupsPeptideGroupID'] == peptideGroupID]['Sequence']
+        df = df[df['TargetPeptideGroupsPeptideGroupID'] == peptideGroupID]
 
         peptide_starts = []
-        for proteinSequence in proteinSequences.values:
-            peptide_starts.append((proteinSequence.find(peptide_sequence)))
+        for accession in masterProteinAccessions:
+            proteinSequence = df[df['Accession'] == accession]['Sequence'].values
+            assert len(proteinSequence) <= 1, 'More then one sequence returned for {} -- {}'.format(accession, proteinSequence)
+            if len(proteinSequence) == 1:
+                peptide_starts.append((proteinSequence[0].find(peptide_sequence)))
 
         global_positions = []
         for peptide_start in peptide_starts:
             pos_strings = []
-
-
 
             for local_mod in local_mods:
                 local_position = int(local_mod[1])
@@ -159,6 +161,11 @@ class PDReader:
             global_positions.append(','.join(pos_strings))
 
         return global_positions
+
+    def __create_protein_isotop_locs(self, row):
+        locs = row['GLOBAL_ISOTOP_LOCS']
+        accessions = row['MasterProteinAccessions'].split('; ')
+        return ','.join([a + '_' + b for a, b in zip(accessions, locs)])
 
     def __read_data_frame(self, sql_string):
         connection = self.__engine.connect()
@@ -279,6 +286,7 @@ class PDReader:
 
             df['Sequence'] = targetPeptideDF['Sequence']
             df['PeptideGroupID'] = targetPeptideDF['PeptideGroupID']
+            df['MasterProteinAccessions'] = targetPeptideDF['MasterProteinAccessions']
 
             df['MOD_LOCS'] = targetPeptideDF['Modifications_best_positions'].apply(
                 lambda x : self.__get_local_mod_locations(x, patern=self.__peptide_group_mod_pattern))
@@ -290,7 +298,8 @@ class PDReader:
             df['GLOBAL_ISOTOP_LOCS'] = df.apply(
                 lambda x : self.__get_global_mod_locations(x, mod_col='ISOTOP_MOD_LOCS'), axis=1)
 
-            df = df.drop(labels=['Sequence', 'PeptideGroupID'], axis=1)
+            df['protein_isotop_locs'] = df.apply(self.__create_protein_isotop_locs, axis=1)
+            df = df.drop(labels=['Sequence', 'PeptideGroupID', 'MasterProteinAccessions'], axis=1)
 
 
             self.__data_cache[data_set_name] = df
