@@ -98,7 +98,7 @@ class PDReader:
 
         # take care of the missing values
         else:
-            result = np.nan
+            result = [np.nan]
 
         if len(result) == 1:
             result = result[0]
