@@ -371,6 +371,16 @@ class PeptidesFromPeptideListBuilder:
 
         return mod_locs
 
+    uniprot_rx = re.compile(r'\b([OPQ]\d[A-Z0-9]{3}\d|[A-NR-Z]\d([A-Z][A-Z0-9]{2}\d){1,2})\b')
+    def __extract_uniprot_ids(self, protein):
+        m = self.uniprot_rx.findall(protein)
+        matches = []
+        for match in m:
+            matches.append(match[0])
+
+        return matches
+
+
     def generate_peptides(self):
         '''
         Works with the peptideList.csv file that were delivered to Novartis in December. These have a bug in the
@@ -406,8 +416,7 @@ class PeptidesFromPeptideListBuilder:
         #'([OPQ][0-9][A-Z0-9]{3}[0-9]|[A-NR-Z][0-9]([A-Z][A-Z0-9]{2}[0-9]){1,2})
 
         """
-        uniprot_rx = re.compile(r'\b([OPQ]\d[A-Z0-9]{3}\d|[A-NR-Z]\d([A-Z][A-Z0-9]{2}\d){1,2})\b')
-        data['uniprot_ids'] = list(df['protein'].str.extractall(uniprot_rx).iloc[:, 0].unstack().values)
+        data['uniprot_ids'] = df['protein'].apply(self.__extract_uniprot_ids)
 
         # Process mods
         data['mod_locs'] = df['sequence'].apply(self.__process_modifications)
@@ -431,6 +440,12 @@ class PeptidesFromPeptideListBuilder:
         ## Get area ratios withough the Xs
         data['run_data'] = df['UNIQUE_1'].apply(lambda x: x.split(";")[:-1])
         data['run_counter'] = data['run_data'].apply(lambda x: [a != 'X' for a in x])
+
+        ## TODO: Add loging and make this a debug
+        print('##################################DATA: BEGIN###################')
+        for key in data.keys():
+            print('KEY: {}, LEN: {}'.format(key, len(data[key])))
+        print('##################################DATA: END###################')
 
         resultDF = pd.DataFrame(data)
         ## Remove None from Uniprot
