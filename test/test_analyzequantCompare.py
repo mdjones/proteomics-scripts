@@ -47,6 +47,8 @@ def get_file_paths():
     resource_path = 'data/resultsverbose{0}'.format(suffix)
     path_dict['resultsverbose'] = pkg_resources.resource_filename(resource_package, resource_path)
 
+    path_dict['long_peptideList'] = '/home/jonesmic/gBuild/jonesmic_github/proteomics-scripts/datanocommit/peptideList.csv'
+
     return path_dict
 
 def test_results_data_creation():
