@@ -47,19 +47,30 @@ def get_file_paths():
     resource_path = 'data/resultsverbose{0}'.format(suffix)
     path_dict['resultsverbose'] = pkg_resources.resource_filename(resource_package, resource_path)
 
-    path_dict['long_peptideList'] = '/home/jonesmic/gBuild/jonesmic_github/proteomics-scripts/datanocommit/peptideList.csv'
+    path_dict['long_peptideList'] = '/home/jonesmic/gBuild/jonesmic_github/proteomics-scripts/datanocommit/03072018_proteomics_informatics_tc/KEA_EN80_UCB_RERUN/peptideList.csv'
+    path_dict['long_results'] = '/home/jonesmic/gBuild/jonesmic_github/proteomics-scripts/datanocommit/03072018_proteomics_informatics_tc/KEA_EN80_UCB_RERUN/results.csv'
+
 
     return path_dict
 
+@nottest
 def test_long_data_creation():
     path_dict = get_file_paths()
 
-    peptide_generator = PeptidesFromPeptideListBuilder(peptide_list_file=path_dict['long_peptideList'])
+    peptide_generator = PeptidesFromPeptideListBuilder(peptide_list_file=path_dict['long_peptideList'], num_uniprot_ids=1)
     analyzeQuantCompare = AnalyzeQuantCompare(peptide_generator=peptide_generator)
 
     groups = analyzeQuantCompare.build_peptide_groups()
     generated_results_csvDF = AnalyzeQuantCompare.build_results_from_peptide_groups(groups)
 
+    ucbResultsDF = UcbreUtils.read_results_csv(path_dict['long_results'])
+
+    ## Ignoring Uniprot since the UCB results has null values.
+    compare_dataframes(ucbdf=ucbResultsDF, novdf=generated_results_csvDF,
+                       merge_cols=['Peptide'],
+                       identical_cols=['run_count', 'annotations'],
+                       close_cols=['mean_group_ratio'],
+                       warn_cols=['ptm_index_from_ip2'])
 
 def test_results_data_creation():
     path_dict = get_file_paths()

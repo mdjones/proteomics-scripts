@@ -332,8 +332,9 @@ class PeptidesFromPeptideListBuilder:
 
     """
 
-    def __init__(self, peptide_list_file):
+    def __init__(self, peptide_list_file, num_uniprot_ids=np.inf):
         self.__peptide_list_file = peptide_list_file
+        self.__num_uniprot_ids = num_uniprot_ids
 
     def __init_peptide(self, row):
         peptide = Peptide(sequence=row['peptide'],
@@ -375,8 +376,13 @@ class PeptidesFromPeptideListBuilder:
     def __extract_uniprot_ids(self, protein):
         m = self.uniprot_rx.findall(protein)
         matches = []
+
+        num_matches = 0
         for match in m:
+            num_matches += 1
             matches.append(match[0])
+            if num_matches == self.__num_uniprot_ids:
+                return matches
 
         return matches
 
