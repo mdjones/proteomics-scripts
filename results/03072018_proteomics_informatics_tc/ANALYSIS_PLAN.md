@@ -21,6 +21,8 @@ $ ls /home/jonesmic/gBuild/jonesmic_github/proteomics-scripts/datanocommit/03072
 
 ### Compare peptide / mod peptide overlap
 
+* What is the characteristics of those peptides that match as sequences but do not have an Probe Mod?
+
 #### Database / Canonical vs. NonCanonical 
 
 ### Compare ratios
